@@ -60,7 +60,7 @@ export default function Footer() {
         {/* Legal text (Apple-style) */}
         <div className="mt-6 text-xs leading-relaxed text-muted-foreground space-y-2">
           <p>
-            GraySourced Enterprises Private Limited is a company incorporated in
+            Open D2C Enterprises Private Limited is a company incorporated in
             India under the Companies Act, 2013. Corporate Identification Number
             (CIN):{" "}
             <span className="whitespace-nowrap">U47211DL2025PTC457808</span>.
@@ -76,7 +76,7 @@ export default function Footer() {
           </p>
 
           <p>
-            GraySourced Enterprises Private Limited is engaged in the sourcing,
+            Open D2C Enterprises Private Limited is engaged in the sourcing,
             packaging, trading, and export of tea, coffee, and spices. Export of
             products is subject to applicable laws, customs regulations, and
             foreign trade policies. International shipments may be subject to
@@ -119,7 +119,7 @@ export default function Footer() {
         {/* Bottom bar */}
         <div className="mt-6 pt-6 border-t border-neutral-200 flex flex-col md:flex-row md:items-center md:justify-between gap-4 text-sm text-muted-foreground">
           <p>
-            © {new Date().getFullYear()} GraySourced Enterprises Pvt. Ltd. All
+            © {new Date().getFullYear()} Open D2C Enterprises Pvt. Ltd. All
             rights reserved.
           </p>
 

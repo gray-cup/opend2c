@@ -124,10 +124,10 @@ export default function Home() {
           {/* Right — form */}
           <div className="w-full max-w-sm flex flex-col items-start">
             <Button variant="redoutline" size="large">
-              Start Selling on GraySourced
+              Start Selling on Open D2C
             </Button>
             <Button variant="whitebggray" size="large" className="mt-4">
-              Start Buying on GraySourced
+              Start Buying on Open D2C
             </Button>
           </div>
         </div>

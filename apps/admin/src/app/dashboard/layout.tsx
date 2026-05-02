@@ -69,7 +69,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div className="h-screen bg-neutral-50 flex flex-col overflow-hidden">
       {/* Top bar */}
       <div className="border-b border-neutral-200 bg-neutral-50 px-6 flex items-center justify-between shrink-0 h-16">
-        <span className="text-xl font-semibold tracking-tight text-neutral-900">GraySourced</span>
+        <span className="text-xl font-semibold tracking-tight text-neutral-900">Open D2C</span>
         <span className="text-xs text-neutral-500 bg-white border border-neutral-200 px-2 py-0.5 rounded-full">Seller</span>
       </div>
 

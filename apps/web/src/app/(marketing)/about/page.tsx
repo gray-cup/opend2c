@@ -32,7 +32,7 @@ export default function AboutPage() {
       <div className="max-w-5xl mx-auto px-4 lg:px-6">
         <div className="text-start mb-16">
           <h1 className="text-3xl md:text-4xl font-semibold text-black mb-3">
-            About GraySourced
+            About Open D2C
           </h1>
           <p className="text-md md:text-lg text-muted-foreground">
             What are we? Who Started this? Started why?
@@ -41,7 +41,7 @@ export default function AboutPage() {
 
         <div>
           {/* <p>
-            <span className="font-semibold">Legal Name</span>: GraySourced
+            <span className="font-semibold">Legal Name</span>: Open D2C
             Enterprises Private Limited
             <br />
             <span className="font-semibold">Country</span>: India/Bharat

@@ -1,4 +1,4 @@
-export const SITE_NAME = "GraySourced";
+export const SITE_NAME = "Open D2C";
 export const SITE_URL = process.env.SITE_URL || "https://graycup.org";
 
 export function generateTitle(title: string) {
@@ -16,7 +16,7 @@ export function generateDescription(text: string) {
   if (text.length < 140) {
     return (
       text +
-      " Explore global sourcing, exports, wholesale and retail coffee, tea and spices from GraySourced."
+      " Explore global sourcing, exports, wholesale and retail coffee, tea and spices from Open D2C."
     );
   }
   return text;

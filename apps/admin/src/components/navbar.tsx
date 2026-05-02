@@ -17,7 +17,7 @@ export function Navbar() {
           <div className="flex items-center gap-6">
             <Link href="/" className="flex items-center gap-3">
               <span className="text-xl font-semibold text-nowrap tracking-tight">
-                GraySourced
+                Open D2C
               </span>
             </Link>
             <p className="opacity-20">|</p>

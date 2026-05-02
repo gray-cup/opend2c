@@ -142,7 +142,7 @@ async function sendWebhook(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "User-Agent": "GraySourced-Contact-Form/1.0",
+        "User-Agent": "Open D2C-Contact-Form/1.0",
       },
       body: JSON.stringify({
         type: "contact_form_submission",

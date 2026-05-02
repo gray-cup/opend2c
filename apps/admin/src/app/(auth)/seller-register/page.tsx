@@ -185,7 +185,7 @@ export default function SellerRegisterPage() {
           Create a seller account
         </h1>
         <p className="mt-1 text-sm text-neutral-500">
-          List and sell your farm&apos;s produce on GraySourced.
+          List and sell your farm&apos;s produce on Open D2C.
         </p>
       </div>
 

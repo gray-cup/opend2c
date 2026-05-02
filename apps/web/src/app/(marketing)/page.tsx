@@ -282,7 +282,7 @@ export default function Home() {
           __html: JSON.stringify({
             "@context": "https://schema.org",
             "@type": "Organization",
-            name: "GraySourced",
+            name: "Open D2C",
             url: "https://graycup.org",
             description: "Global exporter of coffee, tea and spices.",
           }),
@@ -303,8 +303,8 @@ export default function Home() {
                 </h1>
               </div>
 
-              <div className="flex relative mt-10 flex-col max:smml-4 ">
-                <div className="flex flex-row gap-4">
+             <div className="flex relative mt-10 flex-col max:smml-4 ">
+                {/*  <div className="flex flex-row gap-4">
                   <a href="/contact" target="_blank">
                     <Button variant="redoutline" size="sm" className="">
                       Become a Seller
@@ -315,7 +315,7 @@ export default function Home() {
                       Become a Buyer
                     </Button>
                   </a>
-                </div>
+                </div> */}
 
                 {/* Search */}
                 <div className="mt-8 w-full max-w-xl">

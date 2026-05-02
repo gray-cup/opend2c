@@ -62,7 +62,7 @@ function BuyerLayoutContent({ children }: { children: React.ReactNode }) {
     <div className="h-screen bg-neutral-50 flex flex-col overflow-hidden">
       {/* Top bar */}
       <div className="border-b border-neutral-200 bg-neutral-50 px-6 flex items-center justify-between shrink-0 h-16">
-        <span className="text-xl font-semibold tracking-tight text-neutral-900">GraySourced</span>
+        <span className="text-xl font-semibold tracking-tight text-neutral-900">Open D2C</span>
         <div className="flex items-center gap-3">
           <Link
             href="/buyer/cart"

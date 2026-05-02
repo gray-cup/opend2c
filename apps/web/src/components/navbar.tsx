@@ -18,7 +18,7 @@ export function Navbar() {
               href="/"
               className="text-xl font-semibold tracking-tight text-neutral-900 shrink-0"
             >
-              GraySourced
+              Open D2C
             </Link>
 
             <div className="relative hidden md:block w-full max-w-xs lg:max-w-sm">

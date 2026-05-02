@@ -74,7 +74,7 @@ export function SimpleChatDemo() {
         </div>
         <div>
           <h3 className="font-medium text-neutral-900 text-sm">
-            GraySourced Support
+            Open D2C Support
           </h3>
         </div>
       </div>

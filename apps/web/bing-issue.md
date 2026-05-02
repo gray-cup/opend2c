@@ -23,7 +23,7 @@ Create a utility:
 ```
 
 ```ts
-export const SITE_NAME = "GraySourced";
+export const SITE_NAME = "Open D2C";
 
 export function generateTitle(title: string) {
   const full = `${title} | ${SITE_NAME}`;
@@ -43,7 +43,7 @@ export function generateDescription(text: string) {
   if (text.length < 140) {
     return (
       text +
-      " Explore global sourcing, exports, wholesale and retail coffee, tea and spices from GraySourced."
+      " Explore global sourcing, exports, wholesale and retail coffee, tea and spices from Open D2C."
     );
   }
 
@@ -69,7 +69,7 @@ import { generateTitle, generateDescription } from "@/lib/seo";
 export const metadata = {
   title: generateTitle("Global Coffee, Tea & Spice Exporter"),
   description: generateDescription(
-    "GraySourced exports premium coffee beans, tea and spices worldwide while building infrastructure for farms and D2C brands.",
+    "Open D2C exports premium coffee beans, tea and spices worldwide while building infrastructure for farms and D2C brands.",
   ),
 };
 ```
@@ -87,13 +87,13 @@ Examples:
 Title:
 
 ```
-Global Coffee, Tea & Spice Exporter | GraySourced
+Global Coffee, Tea & Spice Exporter | Open D2C
 ```
 
 Description:
 
 ```
-GraySourced exports premium coffee beans, tea and spices worldwide for wholesale, retail and international buyers.
+Open D2C exports premium coffee beans, tea and spices worldwide for wholesale, retail and international buyers.
 ```
 
 ---
@@ -103,13 +103,13 @@ GraySourced exports premium coffee beans, tea and spices worldwide for wholesale
 Title:
 
 ```
-Premium Coffee, Tea & Spice Products | GraySourced
+Premium Coffee, Tea & Spice Products | Open D2C
 ```
 
 Description:
 
 ```
-Explore globally sourced coffee beans, teas and spices from GraySourced available for wholesale, export and retail buyers.
+Explore globally sourced coffee beans, teas and spices from Open D2C available for wholesale, export and retail buyers.
 ```
 
 ---
@@ -119,13 +119,13 @@ Explore globally sourced coffee beans, teas and spices from GraySourced availabl
 Title:
 
 ```
-About GraySourced Coffee & Spice Export Company
+About Open D2C Coffee & Spice Export Company
 ```
 
 Description:
 
 ```
-Learn about GraySourced, a global sourcing and export company specializing in coffee, tea and spices for international markets.
+Learn about Open D2C, a global sourcing and export company specializing in coffee, tea and spices for international markets.
 ```
 
 ---
@@ -152,7 +152,7 @@ export async function generateMetadata({ params }) {
     title: generateTitle(`${product.name} Coffee Beans Export`),
 
     description: generateDescription(
-      `Buy ${product.name} green coffee beans sourced globally by GraySourced. Available for wholesale, retail and international export.`,
+      `Buy ${product.name} green coffee beans sourced globally by Open D2C. Available for wholesale, retail and international export.`,
     ),
   };
 }
@@ -322,7 +322,7 @@ On homepage:
 {
  "@context": "https://schema.org",
  "@type": "Organization",
- "name": "GraySourced",
+ "name": "Open D2C",
  "url": "https://yourdomain.com",
  "description": "Global exporter of coffee, tea and spices."
 }

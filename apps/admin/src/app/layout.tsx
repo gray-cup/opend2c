@@ -42,7 +42,7 @@ const fontPublicSans = Public_Sans({
 });
 
 export const metadata: Metadata = {
-  title: generateTitle("GraySourced"),
+  title: generateTitle("Open D2C"),
   description: generateDescription(
     "We sell Indian tea, coffee and matcha to people who care about quality.",
   ),
@@ -70,7 +70,7 @@ export const metadata: Metadata = {
     ],
   },
   openGraph: {
-    title: generateTitle("GraySourced"),
+    title: generateTitle("Open D2C"),
     description: generateDescription(
       "We sell Indian tea, coffee and matcha to people who care about quality.",
     ),
@@ -79,14 +79,14 @@ export const metadata: Metadata = {
         url: "https://graycup.org/og.png",
         width: 1200,
         height: 630,
-        alt: "GraySourced - Better customer experience with knowledgebase",
+        alt: "Open D2C - Better customer experience with knowledgebase",
       },
     ],
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: generateTitle("GraySourced"),
+    title: generateTitle("Open D2C"),
     description: generateDescription(
       "We sell Indian tea, coffee and matcha to people who care about quality.",
     ),

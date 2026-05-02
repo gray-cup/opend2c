@@ -4,7 +4,7 @@ import { generateTitle, generateDescription } from "@/lib/seo";
 export const metadata: Metadata = {
   title: generateTitle("Terms of Use"),
   description: generateDescription(
-    "Terms of Use for GraySourced Enterprises Private Limited including conditions for using our website, purchasing products and accessing services.",
+    "Terms of Use for Open D2C Enterprises Private Limited including conditions for using our website, purchasing products and accessing services.",
   ),
 };
 
@@ -27,7 +27,7 @@ export default function TermsOfUse() {
           1. Introduction
         </h2>
         <p className="mb-4">
-          Welcome to GraySourced Enterprises Private Limited. By accessing or
+          Welcome to Open D2C Enterprises Private Limited. By accessing or
           using our website, products, and services, you agree to comply with
           and be bound by the following terms and conditions. Please review them
           carefully before using our services.
@@ -47,7 +47,7 @@ export default function TermsOfUse() {
           3. About Our Business
         </h2>
         <p className="mb-4">
-          GraySourced Enterprises Private Limited is engaged in the sourcing,
+          Open D2C Enterprises Private Limited is engaged in the sourcing,
           packaging, trading, and export of tea, coffee, and spices. We operate
           both B2B and consumer retail channels, serving customers in India and
           internationally.
@@ -107,7 +107,7 @@ export default function TermsOfUse() {
         </h2>
         <p className="mb-4">
           All content on this website, including but not limited to text,
-          graphics, logos, images, and software, is the property of GraySourced
+          graphics, logos, images, and software, is the property of Open D2C
           Enterprises Private Limited and is protected by applicable
           intellectual property laws. You may not reproduce, distribute, or use
           any content without our prior written consent.
@@ -129,7 +129,7 @@ export default function TermsOfUse() {
           8. Limitation of Liability
         </h2>
         <p className="mb-4">
-          To the maximum extent permitted by law, GraySourced Enterprises
+          To the maximum extent permitted by law, Open D2C Enterprises
           Private Limited shall not be liable for any indirect, incidental,
           special, consequential, or punitive damages arising from your use of
           our website or products. Our total liability shall not exceed the
@@ -140,7 +140,7 @@ export default function TermsOfUse() {
           9. Indemnification
         </h2>
         <p className="mb-4">
-          You agree to indemnify and hold harmless GraySourced Enterprises
+          You agree to indemnify and hold harmless Open D2C Enterprises
           Private Limited, its directors, employees, and agents from any claims,
           damages, losses, or expenses arising from your violation of these
           terms or misuse of our services.
@@ -179,7 +179,7 @@ export default function TermsOfUse() {
         </p>
 
         <p className="text-sm text-muted-foreground mt-10">
-          GraySourced Enterprises Private Limited | CIN: U47211DL2025PTC457808
+          Open D2C Enterprises Private Limited | CIN: U47211DL2025PTC457808
         </p>
       </div>
     </div>

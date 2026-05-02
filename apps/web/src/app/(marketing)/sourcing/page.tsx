@@ -5,7 +5,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: generateTitle("Sourcing & White Label"),
   description: generateDescription(
-    "Source premium teas, coffees, and spices through GraySourced. We offer raw material sourcing and white label products — packaging is not included.",
+    "Source premium teas, coffees, and spices through Open D2C. We offer raw material sourcing and white label products — packaging is not included.",
   ),
 };
 
@@ -16,7 +16,7 @@ export default function SourcingPage() {
         Sourcing &amp; White Label
       </h1>
       <p className="text-md md:text-lg text-muted-foreground mb-10">
-        Partner with GraySourced to source high-quality teas, coffees, and
+        Partner with Open D2C to source high-quality teas, coffees, and
         spices — under your brand or ours.
       </p>
 
@@ -107,7 +107,7 @@ export default function SourcingPage() {
       </div>
 
       <p className="text-sm text-muted-foreground mt-14">
-        GraySourced Enterprises Private Limited | CIN: U47211DL2025PTC457808 |
+        Open D2C Enterprises Private Limited | CIN: U47211DL2025PTC457808 |
         GST: 06AAMCG4985H1Z4
       </p>
     </div>

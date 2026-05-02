@@ -12,7 +12,7 @@ export default function SettingsPage() {
           },
           {
             label: "Marketing emails",
-            description: "News, product updates, and offers from GraySourced.",
+            description: "News, product updates, and offers from Open D2C.",
           },
           {
             label: "Two-factor authentication",

@@ -189,7 +189,7 @@ export default function BuyerRegisterPage() {
           Create a buyer account
         </h1>
         <p className="mt-1 text-sm text-neutral-500">
-          Source tea, coffee, and more on GraySourced.
+          Source tea, coffee, and more on Open D2C.
         </p>
       </div>
 

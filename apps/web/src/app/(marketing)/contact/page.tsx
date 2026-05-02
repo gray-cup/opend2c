@@ -110,10 +110,10 @@ export default function PricingPage() {
       <div className="max-w-7xl mx-auto px-4 lg:px-6">
         <div className="mb-16">
           <h1 className="text-3xl md:text-4xl font-semibold text-black mb-4">
-            Contact GraySourced
+            Contact Open D2C
           </h1>
           <p className="text-lg text-muted-foreground">
-            Have a question or you want to do business with GraySourced? There
+            Have a question or you want to do business with Open D2C? There
             is always a way to reach us.
             <br />
             Your message matters.

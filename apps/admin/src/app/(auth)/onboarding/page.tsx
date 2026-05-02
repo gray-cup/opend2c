@@ -40,7 +40,7 @@ export default function OnboardingPage() {
     <div className="w-full max-w-md">
       <div className="mb-8">
         <h1 className="text-2xl font-semibold text-neutral-900">
-          How will you use GraySourced?
+          How will you use Open D2C?
         </h1>
         <p className="mt-1 text-sm text-neutral-500">
           This helps us set up the right experience for you.

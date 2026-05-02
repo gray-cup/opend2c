@@ -11,7 +11,7 @@ export default function AccountLayout({
       {/* Top bar */}
       <div className="border-b border-neutral-200 bg-white px-6 py-3 flex items-center justify-between">
         <span className="font-semibold text-neutral-900 text-sm">
-          GraySourced
+          Open D2C
         </span>
 
         <div className="flex items-center gap-3">
