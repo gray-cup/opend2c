@@ -36,7 +36,7 @@ const METRICS: {
     value: OVERVIEW_METRICS.impressions.value,
     change: OVERVIEW_METRICS.impressions.change,
     up: OVERVIEW_METRICS.impressions.up,
-    activeClass: "bg-[#9334e6] text-white",
+    activeClass: "bg-amber-500 text-white",
     lineColor: "#9334e6",
   },
   {
@@ -102,7 +102,7 @@ export default function OverviewPage() {
   return (
     <div className="px-6 py-5 max-w-[1200px]">
       {/* Metric toggle cards */}
-      <div className="flex rounded-lg overflow-hidden border border-gray-200 mb-0 bg-white divide-x divide-gray-200">
+      <div className="flex rounded-lg overflow-hidden border border-gray-200 mb-0 bg-white">
         {METRICS.map((m) => {
           const isActive = active.has(m.key);
           return (

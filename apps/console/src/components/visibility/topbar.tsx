@@ -24,7 +24,7 @@ export function Topbar({ title }: TopbarProps) {
 
       <div className="flex items-center gap-3">
         {/* Date range selector */}
-        <div className="flex items-center border border-gray-200 rounded-md overflow-hidden">
+        {/* <div className="flex items-center border border-gray-200 rounded-md overflow-hidden">
           {DATE_RANGES.map((r) => (
             <button
               key={r.value}
@@ -38,7 +38,7 @@ export function Topbar({ title }: TopbarProps) {
               {r.label}
             </button>
           ))}
-        </div>
+        </div> */}
 
         {/* Export */}
         <button className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors">
