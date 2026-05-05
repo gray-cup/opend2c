@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 
 export type SavedSitemap = {
   id: number;
+  user_id: string;
   url: string;
   status: "queued" | "running" | "done" | "failed";
   product_count: number;
@@ -107,7 +108,7 @@ export async function listSitemaps(userId: string): Promise<SavedSitemap[]> {
   await ensureScraperTables();
   const { rows } = await db.query<SavedSitemap>(
     `
-      SELECT s.id, s.url, s.status, COUNT(p.id)::int AS product_count,
+      SELECT s.id, s.user_id, s.url, s.status, COUNT(p.id)::int AS product_count,
              s.progress_scraped, s.progress_total,
              s.error, s.created_at::text, s.updated_at::text
       FROM scraper_sitemaps s
@@ -125,7 +126,7 @@ export async function getSitemap(id: number): Promise<SavedSitemap | null> {
   await ensureScraperTables();
   const { rows } = await db.query<SavedSitemap>(
     `
-      SELECT s.id, s.url, s.status, COUNT(p.id)::int AS product_count,
+      SELECT s.id, s.user_id, s.url, s.status, COUNT(p.id)::int AS product_count,
              s.progress_scraped, s.progress_total,
              s.error, s.created_at::text, s.updated_at::text
       FROM scraper_sitemaps s

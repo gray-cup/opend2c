@@ -7,6 +7,7 @@ import {
   AccountTree,
   Add,
   BarChart,
+  Bookmark,
   Check,
   Dashboard,
   Inventory2,
@@ -41,6 +42,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Performance", href: "/visibility/performance", Icon: BarChart },
   { label: "Scraper", href: "/visibility/scraper", Icon: TravelExplore },
   { label: "Crawl", href: "/visibility/crawl", Icon: Science },
+  { label: "Brand", href: "/visibility/brand", Icon: Bookmark },
 ];
 
 const BOTTOM_ITEMS: NavItem[] = [
