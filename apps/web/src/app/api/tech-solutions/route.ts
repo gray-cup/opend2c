@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { db } from "@/lib/db";
+import { techSolutionsRequests } from "@/lib/schema";
 import { z } from "zod";
 
 const schema = z.object({
@@ -54,12 +55,10 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { error } = await supabaseAdmin
-    .from("tech_solutions_requests")
-    .insert(data);
-
-  if (error) {
-    console.error("Supabase insert error:", error);
+  try {
+    await db.insert(techSolutionsRequests).values(data);
+  } catch (err) {
+    console.error("DB insert error:", err);
     return NextResponse.json(
       { error: "Failed to save request" },
       { status: 500 },
