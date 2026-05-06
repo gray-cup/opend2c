@@ -93,20 +93,15 @@ func processJob(ctx context.Context, jobID string) {
 	log.Printf("[job %s] done: %d scraped, %d skipped", jobID, scraped, skipped)
 }
 
-// workerLoop pulls job IDs from the Redis queue and processes each in its own goroutine.
 func workerLoop(ctx context.Context) {
 	for {
-		jobID, err := dequeueJob(ctx)
-		if err != nil {
-			if ctx.Err() != nil {
-				return
-			}
-			log.Printf("queue error: %v — retrying in 2s", err)
-			time.Sleep(2 * time.Second)
-			continue
+		select {
+		case <-ctx.Done():
+			return
+		case jobID := <-jobQueue:
+			log.Printf("dequeued job %s", jobID)
+			go processJob(ctx, jobID)
 		}
-		log.Printf("dequeued job %s", jobID)
-		go processJob(ctx, jobID)
 	}
 }
 
@@ -163,11 +158,7 @@ func handleCreateJob(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "db error"})
 		return
 	}
-	if err := enqueueJob(r.Context(), j.ID); err != nil {
-		log.Printf("enqueue: %v", err)
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "queue error"})
-		return
-	}
+	enqueueJob(j.ID)
 
 	writeJSON(w, http.StatusCreated, j)
 }
@@ -231,31 +222,28 @@ func handleJobEvents(w http.ResponseWriter, r *http.Request, id string) {
 		return
 	}
 
-	ctx, cancel := context.WithCancel(r.Context())
-	defer cancel()
-
-	sub := rdb.Subscribe(ctx, progressChannel(id))
-	defer sub.Close()
+	sub := subscribe(id)
+	defer unsubscribe(id, sub)
 
 	heartbeat := time.NewTicker(15 * time.Second)
 	defer heartbeat.Stop()
 
 	for {
 		select {
-		case <-ctx.Done():
+		case <-r.Context().Done():
 			return
 		case <-heartbeat.C:
 			fmt.Fprintf(w, ": ping\n\n")
 			flusher.Flush()
-		case msg, ok := <-sub.Channel():
+		case msg, ok := <-sub.ch:
 			if !ok {
 				return
 			}
-			fmt.Fprintf(w, "data: %s\n\n", msg.Payload)
+			fmt.Fprintf(w, "data: %s\n\n", msg)
 			flusher.Flush()
 
 			var ev ProgressEvent
-			if json.Unmarshal([]byte(msg.Payload), &ev) == nil && (ev.Type == "done" || ev.Type == "error") {
+			if json.Unmarshal([]byte(msg), &ev) == nil && (ev.Type == "done" || ev.Type == "error") {
 				return
 			}
 		}
@@ -303,11 +291,6 @@ func main() {
 		log.Fatalf("postgres: %v", err)
 	}
 	log.Println("postgres: connected")
-
-	if err := initRedis(); err != nil {
-		log.Fatalf("redis: %v", err)
-	}
-	log.Println("redis: connected")
 
 	go workerLoop(ctx)
 

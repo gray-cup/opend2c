@@ -3,49 +3,53 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"os"
-
-	"github.com/redis/go-redis/v9"
+	"sync"
 )
 
-var rdb *redis.Client
+// ---- Job queue ----
 
-const queueKey = "crawl:queue"
+var jobQueue = make(chan string, 256)
 
-func progressChannel(jobID string) string { return "crawl:progress:" + jobID }
-
-func initRedis() error {
-	rawURL := os.Getenv("REDIS_URL")
-	if rawURL == "" {
-		rawURL = "redis://localhost:6379"
-	}
-	opts, err := redis.ParseURL(rawURL)
-	if err != nil {
-		return err
-	}
-	rdb = redis.NewClient(opts)
-	return rdb.Ping(context.Background()).Err()
-}
-
-// ---- Queue ----
-
-func enqueueJob(ctx context.Context, jobID string) error {
-	return rdb.LPush(ctx, queueKey, jobID).Err()
-}
-
-// dequeueJob blocks until a job is available.
-func dequeueJob(ctx context.Context) (string, error) {
-	res, err := rdb.BRPop(ctx, 0, queueKey).Result()
-	if err != nil {
-		return "", err
-	}
-	return res[1], nil
+func enqueueJob(jobID string) {
+	jobQueue <- jobID
 }
 
 // ---- Progress pub/sub ----
 
+type subscriber struct {
+	ch chan string
+}
+
+var (
+	subsMu sync.Mutex
+	subs   = map[string][]*subscriber{}
+)
+
+func subscribe(jobID string) *subscriber {
+	s := &subscriber{ch: make(chan string, 64)}
+	subsMu.Lock()
+	subs[jobID] = append(subs[jobID], s)
+	subsMu.Unlock()
+	return s
+}
+
+func unsubscribe(jobID string, s *subscriber) {
+	subsMu.Lock()
+	list := subs[jobID]
+	for i, sub := range list {
+		if sub == s {
+			subs[jobID] = append(list[:i], list[i+1:]...)
+			break
+		}
+	}
+	if len(subs[jobID]) == 0 {
+		delete(subs, jobID)
+	}
+	subsMu.Unlock()
+}
+
 type ProgressEvent struct {
-	Type    string   `json:"type"` // "progress" | "done" | "error"
+	Type    string   `json:"type"`
 	Scraped int      `json:"scraped,omitempty"`
 	Skipped int      `json:"skipped,omitempty"`
 	Total   int      `json:"total,omitempty"`
@@ -53,7 +57,15 @@ type ProgressEvent struct {
 	Message string   `json:"message,omitempty"`
 }
 
-func publishProgress(ctx context.Context, jobID string, ev ProgressEvent) {
+func publishProgress(_ context.Context, jobID string, ev ProgressEvent) {
 	data, _ := json.Marshal(ev)
-	rdb.Publish(ctx, progressChannel(jobID), string(data))
+	msg := string(data)
+	subsMu.Lock()
+	for _, s := range subs[jobID] {
+		select {
+		case s.ch <- msg:
+		default:
+		}
+	}
+	subsMu.Unlock()
 }
