@@ -3,11 +3,13 @@ package main
 import (
 	"context"
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/json"
 	"fmt"
 	"log"
 	"math/big"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 )
@@ -107,15 +109,86 @@ func workerLoop(ctx context.Context) {
 
 // ---- HTTP helpers ----
 
+// allowedOrigins returns the set of permitted CORS origins from the
+// ALLOWED_ORIGINS env var (comma-separated). Falls back to "*" when unset so
+// local dev works without extra config.
+func allowedOrigins() map[string]bool {
+	raw := os.Getenv("ALLOWED_ORIGINS")
+	if raw == "" {
+		return nil // nil == allow all
+	}
+	set := make(map[string]bool)
+	for _, o := range strings.Split(raw, ",") {
+		if s := strings.TrimSpace(o); s != "" {
+			set[s] = true
+		}
+	}
+	return set
+}
+
+var originSet = allowedOrigins()
+
 func cors(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		origin := r.Header.Get("Origin")
+
+		if originSet == nil {
+			// Dev mode — allow everything
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+		} else if origin != "" && originSet[origin] {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Vary", "Origin")
+		} else if origin != "" {
+			// Known-bad origin — reject preflight immediately
+			if r.Method == http.MethodOptions {
+				w.WriteHeader(http.StatusForbidden)
+				return
+			}
+			// Let the browser enforce for non-preflight; don't set the header
+		}
+
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
+		next(w, r)
+	}
+}
+
+// requireAuth validates the shared WORKER_SECRET.
+//
+// Callers must send one of:
+//   - Header:         Authorization: Bearer <secret>
+//   - Query param:    ?token=<secret>   (needed for browser EventSource which
+//                     cannot set custom headers)
+//
+// The secret is read from the WORKER_SECRET env var. If the var is empty the
+// server refuses all requests with 500 so misconfiguration is obvious.
+func requireAuth(next http.HandlerFunc) http.HandlerFunc {
+	secret := os.Getenv("WORKER_SECRET")
+	return func(w http.ResponseWriter, r *http.Request) {
+		if secret == "" {
+			log.Println("WORKER_SECRET is not set — refusing request")
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "server misconfigured"})
+			return
+		}
+
+		// Extract token from header or query param
+		token := ""
+		if auth := r.Header.Get("Authorization"); strings.HasPrefix(auth, "Bearer ") {
+			token = strings.TrimPrefix(auth, "Bearer ")
+		} else if q := r.URL.Query().Get("token"); q != "" {
+			token = q
+		}
+
+		if subtle.ConstantTimeCompare([]byte(token), []byte(secret)) != 1 {
+			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+			return
+		}
+
 		next(w, r)
 	}
 }
@@ -295,13 +368,21 @@ func main() {
 	go workerLoop(ctx)
 
 	mux := http.NewServeMux()
+
+	// /health is unauthenticated so VPS health-checks / uptime monitors work
 	mux.HandleFunc("/health", cors(func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	}))
-	mux.HandleFunc("/jobs", cors(handleJobs))
-	mux.HandleFunc("/jobs/", cors(handleJobs))
 
-	addr := ":8080"
+	// All job endpoints require a valid WORKER_SECRET
+	mux.HandleFunc("/jobs", cors(requireAuth(handleJobs)))
+	mux.HandleFunc("/jobs/", cors(requireAuth(handleJobs)))
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	addr := ":" + port
 	log.Printf("crawler worker listening on %s", addr)
 	log.Fatal(http.ListenAndServe(addr, mux))
 }
