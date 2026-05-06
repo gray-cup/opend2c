@@ -1,252 +1,85 @@
-"use client";
+import { Metadata } from "next";
+import { generateTitle, generateDescription } from "@/lib/seo";
+import Link from "next/link";
 
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
-import Image from "next/image";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-  CardDescription,
-} from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-
-type Tier = {
-  name: string;
-  description: string;
-  cta: string;
-  ctaVariant?: "default" | "blue" | "red";
-  features: string[];
-  flagText?: string;
+export const metadata: Metadata = {
+  title: generateTitle("Contact"),
+  description: generateDescription(
+    "Get in touch with the Open D2C team — for seller onboarding, partnerships, press, or general enquiries.",
+  ),
 };
 
-/* ---------- Single borderless plan column ---------- */
-function PricingCard({
-  tier,
-  columnRef,
-}: {
-  tier: Tier;
-  columnRef?: React.RefObject<HTMLDivElement | null>;
-}) {
-  return (
-    <div ref={columnRef} className="relative">
-      <Card className="p-0 shadow-none border-0 rounded-none bg-white">
-        <div className="flex flex-col">
-          <CardHeader className="pt-4">
-            <CardTitle className="text-lg font-semibold">{tier.name}</CardTitle>
-          </CardHeader>
-
-          <CardContent className="p-0">
-            <div className="flex w-full flex-col items-start gap-4 pb-4 px-6">
-              <div className="mb-6 flex flex-col gap-2">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm text-neutral-700">{tier.description}</p>
-                </div>
-              </div>
-              <Button
-                className="w-full h-10 rounded-lg"
-                variant={tier.ctaVariant ?? "default"}
-              >
-                {tier.cta}
-              </Button>
-            </div>
-
-            <Separator className="my-5" />
-
-            <ul className="mt-4 flex flex-col gap-4 px-6 pb-4 text-sm">
-              {tier.features.map((f) => (
-                <li key={f} className="flex items-start gap-3">
-                  #<span>{f}</span>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </div>
-      </Card>
-    </div>
-  );
-}
-
-// tracking-[-0.15rem] for dollars and money
-
-/* ---------- Example data ---------- */
-const tiers: Tier[] = [
+const contacts = [
   {
-    name: "General Enquires",
-    description: "We usually respond within 48 hours.",
-    cta: "Send Mail",
-    ctaVariant: "blue",
-    features: ["office@graycup.org"],
+    label: "General enquiries",
+    description: "Questions about the platform, how it works, or anything else.",
+    email: "hello@opend2c.in",
   },
   {
-    name: "Legal & Compliance",
-    description: "We usually respond within 48 hours.",
-    cta: "Send Mail",
-    ctaVariant: "red",
-    features: ["legal@graycup.org"],
+    label: "Seller onboarding",
+    description: "Want to list your D2C brand? We'll walk you through it.",
+    email: "sellers@opend2c.in",
   },
   {
-    name: "Marketing & PR",
-    description: "We usually respond within 48 hours.",
-    cta: "Send Mail",
-    features: ["marketing@graycup.org"],
+    label: "Partnerships & advertising",
+    description: "Brand partnerships, advertising opportunities, and media enquiries.",
+    email: "partnerships@opend2c.in",
   },
   {
-    name: "Call Us",
-    description: "If we miss your call, we'll call you back.",
-    cta: "Call Now",
-    ctaVariant: "blue",
-    features: ["+91 000-work-in-progress"],
+    label: "Legal & compliance",
+    description: "IP concerns, takedown requests, and legal correspondence.",
+    email: "legal@opend2c.in",
   },
 ];
 
-/* ---------- Page ---------- */
-export default function PricingPage() {
-  const frameRef = useRef<HTMLDivElement | null>(null);
-
+export default function ContactPage() {
   return (
-    <div className="min-h-screen py-20">
-      <div className="max-w-7xl mx-auto px-4 lg:px-6">
-        <div className="mb-16">
-          <h1 className="text-3xl md:text-4xl font-semibold text-black mb-4">
-            Contact Open D2C
-          </h1>
-          <p className="text-lg text-muted-foreground">
-            Have a question or you want to do business with Open D2C? There
-            is always a way to reach us.
-            <br />
-            Your message matters.
-          </p>
-        </div>
+    <div className="max-w-3xl mx-auto min-h-screen py-10 lg:py-20 px-4">
+      <h1 className="text-3xl md:text-4xl font-semibold text-neutral-900 mb-3">
+        Contact Open D2C
+      </h1>
+      <p className="text-lg text-muted-foreground mb-12">
+        We're a small team. Pick the right inbox and we'll get back to you.
+      </p>
 
-        <div className="max-w-6xl flex flex-col md:flex-row justify-center items-center max-md:gap-5 md:justify-between mx-auto">
-          <div className="max-w-sm w-full ">
-            <Card className="p-0 border border-gray-200 rounded-2xl bg-white">
-              <div className="flex flex-col ">
-                <CardHeader className="pt-4">
-                  <CardTitle className="text-lg font-semibold">
-                    Sales & Purchases
-                  </CardTitle>
-                </CardHeader>
-
-                <CardContent className="p-0">
-                  <div className="flex w-full flex-col items-start gap-4 px-6 pb-4">
-                    <div className="mb-6 flex flex-col gap-2">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm text-neutral-700">
-                          We usually respond within 48 hours.
-                        </p>
-                      </div>
-                    </div>
-                    <Button
-                      className="w-full h-10 rounded-lg"
-                      variant="lightgray"
-                    >
-                      Send Mail
-                    </Button>
-                  </div>
-
-                  <Separator className="my-5" />
-
-                  <ul className="mt-4 flex flex-col gap-4 px-6 pb-8 text-sm">
-                    <li className="flex items-start gap-3">
-                      <span>#</span>
-                      <span>sales@graycup.org</span>
-                    </li>
-                  </ul>
-                </CardContent>
-              </div>
-            </Card>
-          </div>
-          <div className="flex-col sm:flex-row flex-wrap hidden lg:flex items-center py-4 gap-4 justify-center">
-            <Image
-              src="/coffee-beans.webp"
-              draggable="false"
-              alt="coffee beans"
-              width="280"
-              height="200"
-            />
-          </div>
-
-          <div className="max-w-sm w-full ">
-            <Card className="p-0 border border-gray-200 rounded-2xl bg-white">
-              <div className="flex flex-col ">
-                <CardHeader className="pt-4">
-                  <CardTitle className="text-lg font-semibold">
-                    Schedule Zoom Meeting
-                  </CardTitle>
-                </CardHeader>
-
-                <CardContent className="p-0">
-                  <div className="flex w-full flex-col items-start gap-4 px-6 pb-4">
-                    <div className="mb-6 flex flex-col gap-2">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm text-neutral-700">
-                          Arjun will be attending this meeting.
-                        </p>
-                      </div>
-                    </div>
-                    <Button className="w-full h-10 rounded-lg" variant="gray">
-                      Schedule
-                    </Button>
-                  </div>
-
-                  <Separator className="my-5" />
-
-                  <ul className="mt-4 flex flex-col gap-4 px-6 pb-8 text-sm">
-                    <li className="flex items-start gap-3">
-                      <span>#</span>
-                      <span>arjun@graycup.org</span>
-                    </li>
-                  </ul>
-                </CardContent>
-              </div>
-            </Card>
-          </div>
-        </div>
-        <div className="flex justify-between py-4">
-          <div className="flex-col sm:flex-row flex-wrap hidden lg:flex items-center gap-4 justify-start">
-            <Image
-              src="/tea-leaves.svg"
-              draggable="false"
-              alt="coffee beans"
-              width="160"
-              height="160"
-            />
-          </div>
-          <div className="flex-col sm:flex-row flex-wrap hidden lg:flex items-center gap-4 justify-end">
-            <Image
-              src="/tea-leaves.svg"
-              draggable="false"
-              alt="coffee beans"
-              width="160"
-              height="160"
-            />
-          </div>
-        </div>
-        <div className="max-w-6xl mx-auto mt-10">
-          {/* Wrapper must be relative so overlay positions correctly */}
-          <div className="relative">
-            {/* Framed container can be overflow-hidden now; corners stay clean */}
-            <div
-              ref={frameRef}
-              className="rounded-2xl max-md:max-w-sm max-md:mx-auto border border-gray-200 bg-white overflow-hidden"
-            >
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 md:divide-x divide-gray-200">
-                {tiers.map((t) => {
-                  return (
-                    <div key={t.name} className="relative">
-                      <PricingCard tier={t} />
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-          {/* end wrapper */}
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-12">
+        {contacts.map((c) => (
+          <a
+            key={c.email}
+            href={`mailto:${c.email}`}
+            className="group flex flex-col rounded-xl border border-neutral-200 bg-neutral-50 hover:bg-white hover:border-neutral-300 hover:shadow-sm transition-all p-5"
+          >
+            <p className="text-sm font-semibold text-neutral-800 mb-1">{c.label}</p>
+            <p className="text-xs text-neutral-500 mb-4 flex-1">{c.description}</p>
+            <span className="text-xs font-medium text-blue-700 group-hover:underline underline-offset-2">
+              {c.email}
+            </span>
+          </a>
+        ))}
       </div>
+
+      <section className="rounded-xl border border-neutral-200 bg-neutral-50 p-6 mb-10">
+        <p className="text-sm font-semibold text-neutral-800 mb-1">Schedule a call</p>
+        <p className="text-sm text-neutral-500 mb-4">
+          Prefer to talk? Book a 30-minute call with Arjun directly.
+        </p>
+        <a
+          href="https://cal.com/arjunaditya/30min"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-block rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 transition-colors"
+        >
+          Book on Cal.com →
+        </a>
+      </section>
+
+      <p className="text-xs text-muted-foreground">
+        Want to list your brand instead?{" "}
+        <Link href="/for-sellers" className="text-blue-700 underline underline-offset-2">
+          See how it works
+        </Link>
+        .
+      </p>
     </div>
   );
 }

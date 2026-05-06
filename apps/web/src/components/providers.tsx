@@ -1,11 +1,15 @@
-"use client";
-
 import React from "react";
+import { Toaster } from "@/components/ui/sonner";
 
-interface RootProvidersProps {
+export default function RootProviders({
+  children,
+}: {
   children: React.ReactNode;
-}
-
-export default function RootProviders({ children }: RootProvidersProps) {
-  return <>{children}</>;
+}) {
+  return (
+    <>
+      <Toaster position="top-right" />
+      {children}
+    </>
+  );
 }
