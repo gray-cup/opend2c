@@ -29,6 +29,7 @@ export default function ProductsPage() {
   const [loading, setLoading]   = useState(true);
   const [saving, setSaving]     = useState(false);
   const [bulking, setBulking]   = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError]       = useState("");
 
   async function loadProducts() {
@@ -169,6 +170,26 @@ export default function ProductsPage() {
                 className="px-3 py-1.5 text-xs font-medium bg-white border border-gray-200 text-gray-600 rounded-md hover:bg-gray-50 disabled:opacity-50 transition-colors"
               >
                 Archive
+              </button>
+              <button
+                onClick={async () => {
+                  if (!window.confirm(`Delete ${checked.size} product${checked.size > 1 ? "s" : ""}? This cannot be undone.`)) return;
+                  setDeleting(true);
+                  const res = await fetch("/api/scraper/products", {
+                    method: "DELETE",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ ids: [...checked] }),
+                  });
+                  setDeleting(false);
+                  if (!res.ok) { setError("Delete failed"); return; }
+                  setChecked(new Set());
+                  if (selected && checked.has(selected.id)) setSelected(null);
+                  await loadProducts();
+                }}
+                disabled={deleting}
+                className="px-3 py-1.5 text-xs font-medium bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 transition-colors"
+              >
+                {deleting ? "Deleting…" : "Delete"}
               </button>
               <button
                 onClick={() => setChecked(new Set())}

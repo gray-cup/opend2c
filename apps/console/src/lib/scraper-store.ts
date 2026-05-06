@@ -256,6 +256,17 @@ export async function updateProduct(
   return rows[0] ?? null;
 }
 
+// ─── Products delete ──────────────────────────────────────────────────────────
+
+export async function deleteProducts(userId: string, ids: number[]): Promise<void> {
+  if (ids.length === 0) return;
+  const placeholders = ids.map((_, i) => `$${i + 2}`).join(", ");
+  await db.query(
+    `DELETE FROM scraper_products WHERE user_id=$1 AND id IN (${placeholders})`,
+    [userId, ...ids],
+  );
+}
+
 // ─── Brands ───────────────────────────────────────────────────────────────────
 
 export async function getBrandByUserId(userId: string): Promise<Brand | null> {
@@ -267,6 +278,91 @@ export async function getBrandByUserId(userId: string): Promise<Brand | null> {
     [userId],
   );
   return rows[0] ?? null;
+}
+
+export async function listBrandsByUserId(userId: string): Promise<Brand[]> {
+  await ensureScraperTables();
+  const { rows } = await db.query<Brand>(
+    `SELECT id, user_id, slug, name, description, logo_url, website_url,
+            created_at::text, updated_at::text
+     FROM brands WHERE user_id = $1 ORDER BY created_at ASC`,
+    [userId],
+  );
+  return rows;
+}
+
+export async function getBrandById(userId: string, id: number): Promise<Brand | null> {
+  await ensureScraperTables();
+  const { rows } = await db.query<Brand>(
+    `SELECT id, user_id, slug, name, description, logo_url, website_url,
+            created_at::text, updated_at::text
+     FROM brands WHERE user_id = $1 AND id = $2`,
+    [userId, id],
+  );
+  return rows[0] ?? null;
+}
+
+export async function createBrand(
+  userId: string,
+  input: Pick<Brand, "slug" | "name" | "description" | "logo_url" | "website_url">,
+): Promise<Brand> {
+  await ensureScraperTables();
+  const { rows } = await db.query<Brand>(
+    `INSERT INTO brands (user_id, slug, name, description, logo_url, website_url)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     RETURNING id, user_id, slug, name, description, logo_url, website_url,
+               created_at::text, updated_at::text`,
+    [userId, input.slug, input.name, input.description, input.logo_url, input.website_url],
+  );
+  return rows[0];
+}
+
+export async function updateBrand(
+  userId: string,
+  id: number,
+  input: Partial<Pick<Brand, "slug" | "name" | "description" | "logo_url" | "website_url">>,
+): Promise<Brand | null> {
+  await ensureScraperTables();
+  const fields: string[] = [];
+  const values: unknown[] = [];
+  for (const [key, value] of Object.entries(input)) {
+    values.push(value);
+    fields.push(`${key} = $${values.length}`);
+  }
+  if (fields.length === 0) return getBrandById(userId, id);
+  values.push(userId, id);
+  const { rows } = await db.query<Brand>(
+    `UPDATE brands SET ${fields.join(", ")}, updated_at=NOW()
+     WHERE user_id=$${values.length - 1} AND id=$${values.length}
+     RETURNING id, user_id, slug, name, description, logo_url, website_url,
+               created_at::text, updated_at::text`,
+    values,
+  );
+  return rows[0] ?? null;
+}
+
+export async function deleteBrand(userId: string, id: number): Promise<void> {
+  await db.query(`DELETE FROM brands WHERE user_id=$1 AND id=$2`, [userId, id]);
+}
+
+export async function transferBrand(
+  id: number,
+  fromUserId: string,
+  toEmail: string,
+): Promise<{ error?: string }> {
+  await ensureScraperTables();
+  const { rows } = await db.query<{ id: string }>(
+    `SELECT id FROM "user" WHERE email = $1 LIMIT 1`,
+    [toEmail.toLowerCase().trim()],
+  );
+  if (!rows[0]) return { error: "No account found with that email" };
+  const toUserId = rows[0].id;
+  const result = await db.query(
+    `UPDATE brands SET user_id=$1, updated_at=NOW() WHERE id=$2 AND user_id=$3`,
+    [toUserId, id, fromUserId],
+  );
+  if (result.rowCount === 0) return { error: "Brand not found or not owned by you" };
+  return {};
 }
 
 export async function getBrandBySlug(slug: string): Promise<Brand | null> {

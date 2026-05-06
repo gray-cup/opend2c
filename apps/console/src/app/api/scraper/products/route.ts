@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@/lib/session";
-import { bulkUpdateProducts, listProducts, updateProduct } from "@/lib/scraper-store";
+import { bulkUpdateProducts, deleteProducts, listProducts, updateProduct } from "@/lib/scraper-store";
 
 const STATUSES = new Set(["draft", "active", "archived"]);
 
@@ -58,4 +58,17 @@ export async function POST(req: NextRequest) {
 
   await bulkUpdateProducts(session.user.id, ids, status);
   return NextResponse.json({ updated: ids.length });
+}
+
+export async function DELETE(req: NextRequest) {
+  const session = await getServerSession();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const body = await req.json().catch(() => null);
+  const ids: number[] = Array.isArray(body?.ids) ? body.ids.map(Number).filter(Number.isInteger) : [];
+
+  if (ids.length === 0) return NextResponse.json({ error: "ids required" }, { status: 400 });
+
+  await deleteProducts(session.user.id, ids);
+  return NextResponse.json({ deleted: ids.length });
 }
