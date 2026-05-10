@@ -36,7 +36,9 @@ export default function SitemapsPage() {
   const [saving, setSaving]     = useState(false);
   const [formError, setFormError] = useState("");
   const [progress, setProgress] = useState<ActiveProgress | null>(null);
+  const [menuOpen, setMenuOpen] = useState<number | null>(null);
   const esRef = useRef<EventSource | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
   async function load() {
     const res = await fetch("/api/scraper/sitemaps", { cache: "no-store" });
@@ -45,6 +47,17 @@ export default function SitemapsPage() {
   }
 
   useEffect(() => { load(); }, []);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
 
   function openSSE(id: number) {
     if (esRef.current) { esRef.current.close(); esRef.current = null; }
@@ -82,10 +95,18 @@ export default function SitemapsPage() {
     setSaving(true);
     setFormError("");
 
+    const trimmed = url.trim();
+    const duplicate = sitemaps.find((s) => s.url === trimmed);
+    if (duplicate) {
+      setFormError("This sitemap URL has already been added.");
+      setSaving(false);
+      return;
+    }
+
     const res = await fetch("/api/scraper/sitemaps", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url }),
+      body: JSON.stringify({ url: trimmed }),
     });
 
     setSaving(false);
@@ -98,6 +119,23 @@ export default function SitemapsPage() {
 
     const { id } = await res.json();
     setUrl("");
+    await load();
+    openSSE(id);
+  }
+
+  async function handleDelete(id: number) {
+    setMenuOpen(null);
+    await fetch(`/api/scraper/sitemaps/${id}`, { method: "DELETE" });
+    setSitemaps((prev) => prev.filter((s) => s.id !== id));
+  }
+
+  async function handleResync(id: number) {
+    setMenuOpen(null);
+    const res = await fetch(`/api/scraper/sitemaps/${id}`, { method: "POST" });
+    if (!res.ok) return;
+    setSitemaps((prev) =>
+      prev.map((s) => s.id === id ? { ...s, status: "running", progress_scraped: 0, progress_total: 0 } : s)
+    );
     openSSE(id);
   }
 
@@ -130,7 +168,7 @@ export default function SitemapsPage() {
             required
             placeholder="https://store.example.com/sitemap_products_1.xml"
             value={url}
-            onChange={(e) => setUrl(e.target.value)}
+            onChange={(e) => { setUrl(e.target.value); setFormError(""); }}
             className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-400 placeholder:text-gray-300"
           />
           <button
@@ -205,6 +243,7 @@ export default function SitemapsPage() {
                 <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-400 uppercase tracking-wide w-28">Status</th>
                 <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-400 uppercase tracking-wide w-32">Added</th>
                 <th className="px-5 py-2.5 text-right text-[10px] font-semibold text-gray-400 uppercase tracking-wide w-28">Products</th>
+                <th className="px-3 py-2.5 w-10" />
               </tr>
             </thead>
             <tbody>
@@ -240,6 +279,37 @@ export default function SitemapsPage() {
                     </td>
                     <td className="px-5 py-3 text-right text-xs tabular-nums text-gray-700">
                       {sitemap.product_count > 0 ? sitemap.product_count : "—"}
+                    </td>
+                    <td className="px-3 py-3 relative" ref={menuOpen === sitemap.id ? menuRef : null}>
+                      <button
+                        onClick={() => setMenuOpen(menuOpen === sitemap.id ? null : sitemap.id)}
+                        className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+                        aria-label="Row actions"
+                      >
+                        <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                          <circle cx="10" cy="4"  r="1.5" />
+                          <circle cx="10" cy="10" r="1.5" />
+                          <circle cx="10" cy="16" r="1.5" />
+                        </svg>
+                      </button>
+
+                      {menuOpen === sitemap.id && (
+                        <div className="absolute right-0 top-full mt-1 z-20 w-36 bg-white border border-gray-200 rounded-md shadow-md py-1">
+                          <button
+                            onClick={() => handleResync(sitemap.id)}
+                            disabled={sitemap.status === "running"}
+                            className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            Resync
+                          </button>
+                          <button
+                            onClick={() => handleDelete(sitemap.id)}
+                            className="w-full text-left px-3 py-1.5 text-xs text-red-600 hover:bg-red-50"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 );

@@ -13,7 +13,9 @@ type Offer = {
   url?: string;
 };
 
-const MAX_PRODUCTS_PER_SITEMAP = 80;
+const MAX_PRODUCTS_PER_SITEMAP = 200;
+const RETRY_DELAY_MS = 3000;
+const MAX_RETRIES = 3;
 
 export async function scrapeProductsFromSitemap(
   sitemapUrl: string,
@@ -26,41 +28,75 @@ export async function scrapeProductsFromSitemap(
 
   const total = urls.length;
   const products: ScrapedProduct[] = [];
+  const retryQueue: string[] = [];
 
   for (const url of urls) {
-    const product = await scrapeProduct(url);
-    if (product) products.push(product);
+    const result = await scrapeProductWithRetry(url);
+    if (result === "rate-limited") {
+      retryQueue.push(url);
+    } else if (result) {
+      products.push(result);
+    }
     onProgress?.(products.length, total);
+  }
+
+  // Second pass — retry rate-limited URLs after a delay
+  if (retryQueue.length > 0) {
+    await sleep(RETRY_DELAY_MS * 2);
+    for (const url of retryQueue) {
+      const result = await scrapeProductWithRetry(url);
+      if (result && result !== "rate-limited") {
+        products.push(result);
+      }
+      onProgress?.(products.length, total);
+    }
   }
 
   return products;
 }
 
-async function scrapeProduct(url: string): Promise<ScrapedProduct | null> {
-  try {
-    const html = await fetchText(url);
-    const raw = findProductJson(html);
-    if (!raw) return null;
-
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
-    const title = typeof parsed.name === "string" ? parsed.name : "";
-    if (!title) return null;
-
-    const offer = pickOffer(parsed.offers);
-    const sourceUrl = offer?.url ? resolveUrl(url, offer.url) : url;
-
-    return {
-      source_url: sourceUrl,
-      title,
-      image: pickImage(parsed.image),
-      shop: new URL(url).hostname.replace(/^www\./, ""),
-      price: offer?.price === undefined ? null : String(offer.price),
-      currency: offer?.priceCurrency ?? null,
-    };
-  } catch {
-    return null;
+async function scrapeProductWithRetry(url: string): Promise<ScrapedProduct | null | "rate-limited"> {
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      const html = await fetchText(url);
+      return parseProduct(url, html);
+    } catch (err) {
+      if (err instanceof RateLimitError) {
+        if (attempt < MAX_RETRIES - 1) {
+          await sleep(RETRY_DELAY_MS * (attempt + 1));
+          continue;
+        }
+        return "rate-limited";
+      }
+      // Any other error (404, parse fail, etc.) — skip
+      return null;
+    }
   }
+  return null;
 }
+
+function parseProduct(url: string, html: string): ScrapedProduct | null {
+  const raw = findProductJson(html);
+  if (!raw) return null;
+
+  const parsed = JSON.parse(raw) as Record<string, unknown>;
+  const title = typeof parsed.name === "string" ? parsed.name : "";
+  if (!title) return null;
+
+  const offer = pickOffer(parsed.offers);
+  const sourceUrl = offer?.url ? resolveUrl(url, offer.url) : url;
+
+  return {
+    source_url: sourceUrl,
+    title,
+    image: pickImage(parsed.image),
+    shop: new URL(url).hostname.replace(/^www\./, ""),
+    price: offer?.price === undefined ? null : String(offer.price),
+    currency: offer?.priceCurrency ?? null,
+  };
+}
+
+class RateLimitError extends Error {}
 
 async function fetchText(url: string) {
   const res = await fetch(url, {
@@ -71,11 +107,19 @@ async function fetchText(url: string) {
     },
   });
 
+  if (res.status === 429 || res.status === 503) {
+    throw new RateLimitError(`Rate limited (HTTP ${res.status})`);
+  }
+
   if (!res.ok) {
     throw new Error(`Fetch failed with HTTP ${res.status}`);
   }
 
   return res.text();
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function extractLocs(xml: string) {

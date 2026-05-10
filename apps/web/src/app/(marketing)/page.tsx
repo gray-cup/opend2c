@@ -1,3 +1,5 @@
+export const revalidate = 300;
+
 import Script from "next/script";
 import ProductBrowser from "./product-browser";
 
@@ -15,7 +17,7 @@ async function fetchProducts(): Promise<Product[]> {
   const consoleUrl = (process.env.CONSOLE_URL ?? "http://localhost:3003").replace(/\/$/, "");
   try {
     const res = await fetch(`${consoleUrl}/api/public/products`, {
-      next: { revalidate: 21600 },
+      next: { revalidate: 300 },
     });
     if (!res.ok) return [];
     return res.json();
