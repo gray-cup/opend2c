@@ -9,8 +9,8 @@ function Bar() {
 
   const [width, setWidth] = useState(0);
   const [opacity, setOpacity] = useState(0);
-  const completeTimer = useRef<ReturnType<typeof setTimeout>>();
-  const hideTimer = useRef<ReturnType<typeof setTimeout>>();
+  const completeTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const hideTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
     function onStart() {
