@@ -280,7 +280,8 @@ export default function SitemapsPage() {
                     <td className="px-5 py-3 text-right text-xs tabular-nums text-gray-700">
                       {sitemap.product_count > 0 ? sitemap.product_count : "—"}
                     </td>
-                    <td className="px-3 py-3 relative" ref={menuOpen === sitemap.id ? menuRef : null}>
+                    <td className="px-3 py-3">
+                      <div className="relative" ref={menuOpen === sitemap.id ? menuRef : null}>
                       <button
                         onClick={() => setMenuOpen(menuOpen === sitemap.id ? null : sitemap.id)}
                         className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
@@ -310,6 +311,7 @@ export default function SitemapsPage() {
                           </button>
                         </div>
                       )}
+                      </div>
                     </td>
                   </tr>
                 );

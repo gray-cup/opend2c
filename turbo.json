@@ -11,7 +11,10 @@
         "BETTER_AUTH_URL",
         "BETTER_AUTH_SECRET",
         "CONSOLE_URL",
-        "DISCORD_FEEDBACK_WEBHOOK_URL"
+        "DISCORD_FEEDBACK_WEBHOOK_URL",
+        "WORKER_URL",
+        "WORKER_SECRET",
+        "CRAWLER_WORKER_URL"
       ]
     },
     "lint": {
