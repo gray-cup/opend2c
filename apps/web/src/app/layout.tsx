@@ -40,6 +40,7 @@ const fontPublicSans = Public_Sans({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://opend2c.com"),
   title: generateTitle("Open D2C"),
   description: generateDescription(
     "We sell Indian tea, coffee and matcha to people who care about quality.",
@@ -74,7 +75,7 @@ export const metadata: Metadata = {
     ),
     images: [
       {
-        url: "https://graycup.org/og.png",
+        url: "/og.png",
         width: 1200,
         height: 630,
         alt: "Open D2C - Better customer experience with knowledgebase",
@@ -88,7 +89,7 @@ export const metadata: Metadata = {
     description: generateDescription(
       "We sell Indian tea, coffee and matcha to people who care about quality.",
     ),
-    images: ["https://graycup.org/og.png"],
+    images: ["/og.png"],
   },
 };
 

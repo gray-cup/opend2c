@@ -66,7 +66,7 @@ async function fetchText(url: string) {
   const res = await fetch(url, {
     headers: {
       "User-Agent":
-        "Mozilla/5.0 (compatible; OpenD2CVisibilityBot/1.0; +https://graycup.org)",
+        "Mozilla/5.0 (compatible; OpenD2CVisibilityBot/1.0; +https://opend2c.com)",
       Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     },
   });

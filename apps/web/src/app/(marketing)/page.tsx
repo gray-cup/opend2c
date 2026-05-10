@@ -37,7 +37,7 @@ export default async function Home() {
             "@context": "https://schema.org",
             "@type": "Organization",
             name: "Open D2C",
-            url: "https://graycup.org",
+            url: "https://opend2c.com",
             description: "Global exporter of coffee, tea and spices.",
           }),
         }}

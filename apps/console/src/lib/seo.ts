@@ -1,5 +1,5 @@
 export const SITE_NAME = "Open D2C";
-export const SITE_URL = process.env.SITE_URL || "https://graycup.org";
+export const SITE_URL = process.env.SITE_URL || "https://opend2c.com";
 
 export function generateTitle(title: string) {
   const full = `${title} | ${SITE_NAME}`;
