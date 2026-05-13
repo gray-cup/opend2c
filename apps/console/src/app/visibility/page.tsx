@@ -82,6 +82,7 @@ export default function OverviewPage() {
   const [calOpen, setCalOpen]       = useState(false);
   const [preset, setPreset]         = useState(30);
   const [range, setRange]           = useState<DateRange | undefined>(undefined);
+  const [issues, setIssues]         = useState<IssuesSummary | null>(null);
 
   const fetchData = useCallback(async (start: Date, end: Date) => {
     setLoading(true);
@@ -97,11 +98,12 @@ export default function OverviewPage() {
     }
   }, []);
 
-  // Initial load — last 30 days
+  // Initial load — last 30 days + issues
   useEffect(() => {
     const end   = endOfDay(new Date());
     const start = startOfDay(subDays(new Date(), 29));
     fetchData(start, end);
+    fetch("/api/issues").then((r) => r.ok && r.json()).then((d) => d && setIssues(d));
   }, [fetchData]);
 
   function applyPreset(days: number) {
@@ -208,6 +210,96 @@ export default function OverviewPage() {
           </Popover>
         </div>
       </div>
+
+      {/* Issues requiring attention */}
+      {issues && (
+        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900">Issues requiring attention</h2>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {issues.total === 0
+                  ? "All products look good"
+                  : `${issues.total} product${issues.total !== 1 ? "s" : ""} with issues — hidden from the marketplace`}
+              </p>
+            </div>
+            {issues.total > 0 && (
+              <div className="flex items-center gap-3 text-xs text-gray-400">
+                {issues.noImage > 0 && (
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium ${ISSUE_META["No image"].bg} ${ISSUE_META["No image"].color} border ${ISSUE_META["No image"].border}`}>
+                    No image ×{issues.noImage}
+                  </span>
+                )}
+                {issues.noPrice > 0 && (
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium ${ISSUE_META["No price"].bg} ${ISSUE_META["No price"].color} border ${ISSUE_META["No price"].border}`}>
+                    No price ×{issues.noPrice}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+
+          {issues.total === 0 ? (
+            <div className="px-5 py-6 flex items-center gap-2 text-sm text-green-700">
+              <svg className="h-4 w-4 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              All products look good — no issues found.
+            </div>
+          ) : (
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-100">
+                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Product</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Shop</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Issues</th>
+                </tr>
+              </thead>
+              <tbody>
+                {issues.products.map((p) => (
+                  <tr key={p.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/60 transition-colors">
+                    <td className="px-5 py-3">
+                      <a
+                        href={p.source_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-sm text-gray-900 hover:text-blue-600 font-medium"
+                      >
+                        {truncateWords(p.title, 6)}
+                      </a>
+                    </td>
+                    <td className="px-5 py-3 text-xs text-gray-500">{p.shop}</td>
+                    <td className="px-5 py-3">
+                      <div className="flex flex-wrap gap-1.5">
+                        {p.issues.map((issue) => {
+                          const meta = ISSUE_META[issue];
+                          return meta ? (
+                            <span
+                              key={issue}
+                              title={meta.description}
+                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${meta.bg} ${meta.color} ${meta.border}`}
+                            >
+                              {issue}
+                            </span>
+                          ) : null;
+                        })}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+
+          {issues.total > 0 && (
+            <div className="px-5 py-3 border-t border-gray-100 bg-gray-50/50">
+              <a href="/visibility/products?issues=1" className="text-xs text-blue-600 hover:underline font-medium">
+                Fix issues in Products →
+              </a>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Clicks over time chart */}
       <div className="bg-white border border-gray-200 rounded-lg px-5 pt-5 pb-3">
