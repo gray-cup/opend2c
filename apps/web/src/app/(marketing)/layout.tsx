@@ -1,5 +1,5 @@
 import React from "react";
-import Link from "next/link";
+import { Analytics } from "@vercel/analytics/next";
 import { Navbar } from "@/components/navbar";
 import Footer from "@/components/footer";
 
@@ -10,15 +10,11 @@ export default function MarketingLayout({
 }) {
   return (
     <div className="relative flex min-h-screen flex-col">
-      {/* Header */}
       <Navbar />
-
-      {/* Main content */}
       <main className="w-full">
         <div className="max-w-7xl mx-auto  ">{children}</div>
       </main>
-
-      {/* Footer */}
+      <Analytics />
       <Footer />
     </div>
   );
