@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 type ProductStatus = "draft" | "active" | "archived";
 type FilterValue   = ProductStatus | "all";
@@ -198,6 +199,14 @@ function checkImageUrl(url: string): Promise<boolean> {
 }
 
 export default function ProductsPage() {
+  return (
+    <Suspense>
+      <ProductsPageInner />
+    </Suspense>
+  );
+}
+
+function ProductsPageInner() {
   const [products, setProducts]       = useState<Product[]>([]);
   const [total, setTotal]             = useState(0);
   const [hasMore, setHasMore]         = useState(false);
@@ -219,9 +228,12 @@ export default function ProductsPage() {
   const [deleting, setDeleting]       = useState(false);
   const [error, setError]             = useState("");
 
-  const sentinelRef = useRef<HTMLDivElement>(null);
-  const queryRef    = useRef(query);
-  const filterRef   = useRef(filter);
+  const searchParams   = useSearchParams();
+  const sentinelRef    = useRef<HTMLDivElement>(null);
+  const scrollRef      = useRef<HTMLDivElement>(null);
+  const queryRef       = useRef(query);
+  const filterRef      = useRef(filter);
+  const showIssuesRef  = useRef(showIssues);
 
   const markBroken = useCallback((id: number) => {
     setBrokenIds((prev) => prev.has(id) ? prev : new Set([...prev, id]));
@@ -262,12 +274,15 @@ export default function ProductsPage() {
     setShowBroken(true);
   }
 
-  const fetchPage = useCallback(async (off: number, q: string, f: FilterValue, append: boolean) => {
+  const fetchPage = useCallback(async (
+    off: number, q: string, f: FilterValue, issues: boolean, append: boolean,
+  ) => {
     const params = new URLSearchParams({
       limit:  String(PAGE),
       offset: String(off),
-      status: f,
+      status: issues ? "all" : f,
       ...(q ? { q } : {}),
+      ...(issues ? { has_issues: "1" } : {}),
     });
     const res = await fetch(`/api/scraper/products?${params}`, { cache: "no-store" });
     if (!res.ok) { setError("Could not load products"); return; }
@@ -281,30 +296,62 @@ export default function ProductsPage() {
     }
   }, []);
 
+  // Read ?issues=1 from URL on first mount
   useEffect(() => {
-    queryRef.current  = query;
-    filterRef.current = filter;
+    if (searchParams.get("issues") === "1") {
+      setShowIssues(true);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    queryRef.current      = query;
+    filterRef.current     = filter;
+    showIssuesRef.current = showIssues;
     setLoading(true);
     setChecked(new Set());
-    fetchPage(0, query, filter, false).finally(() => setLoading(false));
-  }, [query, filter, fetchPage]);
+    fetchPage(0, query, filter, showIssues, false).finally(() => setLoading(false));
+  }, [query, filter, showIssues, fetchPage]);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
-    if (!sentinel) return;
+    const root     = scrollRef.current;
+    if (!sentinel || !root) return;
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
           setLoadingMore(true);
-          fetchPage(offset, queryRef.current, filterRef.current, true)
+          fetchPage(offset, queryRef.current, filterRef.current, showIssuesRef.current, true)
             .finally(() => setLoadingMore(false));
         }
       },
-      { rootMargin: "200px" },
+      { root, rootMargin: "200px" },
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
   }, [hasMore, loadingMore, loading, offset, fetchPage]);
+
+  async function selectAllIssues() {
+    // Load every page of issues then select all IDs
+    const allIds: number[] = [];
+    let off = 0;
+    while (true) {
+      const params = new URLSearchParams({ limit: "100", offset: String(off), status: "all", has_issues: "1" });
+      const res = await fetch(`/api/scraper/products?${params}`, { cache: "no-store" });
+      if (!res.ok) break;
+      const data: { products: Product[]; hasMore: boolean } = await res.json();
+      // Merge any newly loaded products into state
+      setProducts((prev) => {
+        const known = new Map(prev.map((p) => [p.id, p]));
+        data.products.forEach((p) => known.set(p.id, p));
+        return [...known.values()];
+      });
+      for (const p of data.products) allIds.push(p.id);
+      off += data.products.length;
+      if (!data.hasMore) break;
+    }
+    setChecked(new Set(allIds));
+  }
 
   const queryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   function onQueryChange(v: string) {
@@ -312,13 +359,10 @@ export default function ProductsPage() {
     queryTimerRef.current = setTimeout(() => setQuery(v), 300);
   }
 
-  const productsWithIssues = products.filter((p) => getIssues(p, brokenIds).length > 0);
-
-  const visibleProducts = showIssues
-    ? productsWithIssues
-    : showBroken
-      ? products.filter((p) => brokenIds.has(p.id))
-      : products;
+  // In issues mode the server already filters; in broken mode filter client-side from loaded products
+  const visibleProducts = showBroken && !showIssues
+    ? products.filter((p) => brokenIds.has(p.id))
+    : products;
 
   const allPageChecked = visibleProducts.length > 0 && visibleProducts.every((p) => checked.has(p.id));
   const someChecked    = checked.size > 0;
@@ -354,7 +398,7 @@ export default function ProductsPage() {
     if (!res.ok) { setError("Bulk update failed"); return; }
     setChecked(new Set());
     setLoading(true);
-    await fetchPage(0, query, filter, false);
+    await fetchPage(0, query, filter, showIssues, false);
     setLoading(false);
   }
 
@@ -372,7 +416,7 @@ export default function ProductsPage() {
     if (selected && checked.has(selected.id)) setSelected(null);
     setChecked(new Set());
     setLoading(true);
-    await fetchPage(0, query, filter, false);
+    await fetchPage(0, query, filter, showIssues, false);
     setLoading(false);
   }
 
@@ -452,21 +496,17 @@ export default function ProductsPage() {
               </button>
             ))}
             <button
-              onClick={() => { setShowIssues((v) => !v); setShowBroken(false); }}
+              onClick={() => { setShowIssues((v) => !v); setShowBroken(false); setChecked(new Set()); }}
               className={`px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 ${
                 showIssues
                   ? "bg-orange-500 text-white"
-                  : productsWithIssues.length > 0
-                    ? "bg-white border border-orange-300 text-orange-600 hover:bg-orange-50"
-                    : "bg-white border border-gray-200 text-gray-400 hover:bg-gray-50"
+                  : "bg-white border border-orange-300 text-orange-600 hover:bg-orange-50"
               }`}
             >
               Issues
-              {productsWithIssues.length > 0 && (
-                <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
-                  showIssues ? "bg-white/20 text-white" : "bg-orange-100 text-orange-600"
-                }`}>
-                  {productsWithIssues.length}
+              {showIssues && total > 0 && (
+                <span className="rounded-full px-1.5 py-0.5 text-[10px] font-bold bg-white/20 text-white">
+                  {total}
                 </span>
               )}
             </button>
@@ -510,7 +550,31 @@ export default function ProductsPage() {
             </button>
           </div>
 
-          {someChecked && (
+          {showIssues ? (
+            <div className="flex items-center gap-2">
+              {someChecked ? (
+                <>
+                  <span className="text-xs text-gray-500">{checked.size} selected</span>
+                  <button onClick={bulkDelete} disabled={deleting}
+                    className="px-3 py-1.5 text-xs font-medium bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 transition-colors">
+                    {deleting ? "Deleting…" : `Delete ${checked.size}`}
+                  </button>
+                  <button onClick={() => setChecked(new Set())} className="px-3 py-1.5 text-xs text-gray-400 hover:text-gray-600">
+                    Clear
+                  </button>
+                </>
+              ) : (
+                !loading && total > 0 && (
+                  <button
+                    onClick={selectAllIssues}
+                    className="px-3 py-1.5 text-xs font-medium bg-white border border-orange-300 text-orange-600 rounded-md hover:bg-orange-50"
+                  >
+                    Select all {total} with issues
+                  </button>
+                )
+              )}
+            </div>
+          ) : someChecked ? (
             <div className="flex items-center gap-2">
               <span className="text-xs text-gray-500">{checked.size} selected</span>
               <button onClick={() => bulkUpdate("active")} disabled={bulking}
@@ -533,7 +597,7 @@ export default function ProductsPage() {
                 Clear
               </button>
             </div>
-          )}
+          ) : null}
         </div>
 
         {showBroken && brokenIds.size === 0 && !scanning && (
@@ -543,17 +607,17 @@ export default function ProductsPage() {
         )}
 
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden flex-1 min-h-0">
-          <div className="h-full overflow-y-auto">
+          <div ref={scrollRef} className="h-full overflow-y-auto">
             {loading ? (
               <div className="px-5 py-10 text-center text-sm text-gray-400">Loading products…</div>
             ) : visibleProducts.length === 0 ? (
               <div className="px-5 py-10 text-center text-sm text-gray-400">
-                {showIssues ? "No issues found in loaded products." : showBroken ? "No broken images detected in loaded products." : "No products found. Add a sitemap in Sitemaps first."}
+                {showIssues ? "No issues found — all products have images and prices." : showBroken ? "No broken images detected in loaded products." : "No products found. Add a sitemap in Sitemaps first."}
               </div>
             ) : (
               <>
                 <table className="w-full min-w-[760px]">
-                  <thead className="sticky top-0 bg-gray-50 border-b border-gray-200">
+                  <thead className="sticky top-0 z-10 bg-gray-50 border-b border-gray-200">
                     <tr>
                       <th className="pl-4 pr-2 py-3 w-8">
                         <input type="checkbox" checked={allPageChecked} onChange={toggleAll}

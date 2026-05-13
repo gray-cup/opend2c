@@ -247,9 +247,10 @@ export default function OverviewPage() {
               All products look good — no issues found.
             </div>
           ) : (
+            <div className="max-h-72 overflow-y-auto">
             <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-100">
+              <thead className="sticky top-0 z-10 bg-white border-b border-gray-100">
+                <tr>
                   <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Product</th>
                   <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Shop</th>
                   <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500">Issues</th>
@@ -289,6 +290,7 @@ export default function OverviewPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
 
           {issues.total > 0 && (

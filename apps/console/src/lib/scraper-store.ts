@@ -245,7 +245,7 @@ export async function upsertProducts(
 
 export async function listProducts(
   userId: string,
-  opts: { limit: number; offset: number; status?: string; q?: string } = { limit: 10, offset: 0 },
+  opts: { limit: number; offset: number; status?: string; q?: string; hasIssues?: boolean } = { limit: 10, offset: 0 },
 ): Promise<{ products: SavedProduct[]; total: number }> {
   await ensureScraperTables();
 
@@ -261,6 +261,10 @@ export async function listProducts(
     values.push(`%${opts.q.toLowerCase()}%`);
     const idx = values.length;
     conditions.push(`(LOWER(title) LIKE $${idx} OR LOWER(shop) LIKE $${idx})`);
+  }
+
+  if (opts.hasIssues) {
+    conditions.push(`(image IS NULL OR price IS NULL OR TRIM(price) = '')`);
   }
 
   const where = conditions.join(" AND ");
