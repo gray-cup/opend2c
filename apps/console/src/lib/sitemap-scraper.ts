@@ -1,4 +1,4 @@
-type ScrapedProduct = {
+export type ScrapedProduct = {
   source_url: string;
   title: string;
   image: string | null;
@@ -13,46 +13,62 @@ type Offer = {
   url?: string;
 };
 
-const MAX_PRODUCTS_PER_SITEMAP = 200;
-const RETRY_DELAY_MS = 3000;
-const MAX_RETRIES = 3;
+const BATCH_SIZE       = 50;
+const BATCH_PAUSE_MS   = 2 * 60 * 1000; // 2 minutes between batches
+const RETRY_DELAY_MS   = 3_000;
+const MAX_RETRIES      = 3;
 
 export async function scrapeProductsFromSitemap(
   sitemapUrl: string,
-  onProgress?: (scraped: number, total: number) => void,
-) {
+  onBatch: (products: ScrapedProduct[], scraped: number, total: number) => Promise<void>,
+): Promise<void> {
   const sitemap = await fetchText(sitemapUrl);
-  const urls = extractLocs(sitemap)
-    .filter((url) => /product|\/p\//i.test(url))
-    .slice(0, MAX_PRODUCTS_PER_SITEMAP);
+  const urls = extractLocs(sitemap).filter((url) => /product|\/p\//i.test(url));
 
   const total = urls.length;
-  const products: ScrapedProduct[] = [];
+  let scraped = 0;
   const retryQueue: string[] = [];
 
-  for (const url of urls) {
-    const result = await scrapeProductWithRetry(url);
-    if (result === "rate-limited") {
-      retryQueue.push(url);
-    } else if (result) {
-      products.push(result);
+  // Process in batches of BATCH_SIZE
+  for (let batchStart = 0; batchStart < urls.length; batchStart += BATCH_SIZE) {
+    if (batchStart > 0) {
+      // Pause between batches to avoid rate-limiting the target site
+      await sleep(BATCH_PAUSE_MS);
     }
-    onProgress?.(products.length, total);
+
+    const batch = urls.slice(batchStart, batchStart + BATCH_SIZE);
+    const batchProducts: ScrapedProduct[] = [];
+
+    for (const url of batch) {
+      const result = await scrapeProductWithRetry(url);
+      if (result === "rate-limited") {
+        retryQueue.push(url);
+      } else if (result) {
+        batchProducts.push(result);
+        scraped++;
+      }
+    }
+
+    if (batchProducts.length > 0) {
+      await onBatch(batchProducts, scraped, total);
+    }
   }
 
   // Second pass — retry rate-limited URLs after a delay
   if (retryQueue.length > 0) {
     await sleep(RETRY_DELAY_MS * 2);
+    const retryProducts: ScrapedProduct[] = [];
     for (const url of retryQueue) {
       const result = await scrapeProductWithRetry(url);
       if (result && result !== "rate-limited") {
-        products.push(result);
+        retryProducts.push(result);
+        scraped++;
       }
-      onProgress?.(products.length, total);
+    }
+    if (retryProducts.length > 0) {
+      await onBatch(retryProducts, scraped, total);
     }
   }
-
-  return products;
 }
 
 async function scrapeProductWithRetry(url: string): Promise<ScrapedProduct | null | "rate-limited"> {

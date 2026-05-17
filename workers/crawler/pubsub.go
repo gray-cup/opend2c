@@ -48,14 +48,6 @@ func unsubscribe(jobID string, s *subscriber) {
 	subsMu.Unlock()
 }
 
-type ProgressEvent struct {
-	Type    string   `json:"type"`
-	Scraped int      `json:"scraped,omitempty"`
-	Skipped int      `json:"skipped,omitempty"`
-	Total   int      `json:"total,omitempty"`
-	Product *Product `json:"product,omitempty"`
-	Message string   `json:"message,omitempty"`
-}
 
 func publishProgress(_ context.Context, jobID string, ev ProgressEvent) {
 	data, _ := json.Marshal(ev)

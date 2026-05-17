@@ -48,19 +48,45 @@ export async function POST(req: NextRequest) {
   const sitemapId = await createSitemap(session.user.id, brand.id, url);
   const userId = session.user.id;
 
-  // Fire-and-forget — scrape in background so SSE can stream progress
-  void (async () => {
-    try {
-      const products = await scrapeProductsFromSitemap(url, async (scraped, total) => {
-        await updateSitemapProgress(sitemapId, scraped, total);
-      });
-      await upsertProducts(userId, sitemapId, products);
-      await markSitemapDone(sitemapId);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to scrape sitemap";
-      await markSitemapFailed(sitemapId, message);
-    }
-  })();
+  const crawlerWorkerURL = process.env.CRAWLER_WORKER_URL?.replace(/\/$/, "");
+  const workerSecret = process.env.WORKER_SECRET ?? "";
+
+  if (crawlerWorkerURL && workerSecret) {
+    // Delegate to Go worker — it handles batching, rate-limit backoff, and
+    // live progress syncing back to this sitemap record
+    void fetch(`${crawlerWorkerURL}/jobs`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${workerSecret}`,
+      },
+      body: JSON.stringify({
+        sitemap_url:     url,
+        sitemap_id:      sitemapId,
+        console_user_id: userId,
+        batch_size:      50,
+        batch_pause_secs: 120,
+      }),
+    }).catch((err) => {
+      console.error("[sitemap] go worker handoff failed:", err);
+      // If the worker call fails, fall back to marking it failed
+      markSitemapFailed(sitemapId, "Worker handoff failed: " + String(err));
+    });
+  } else {
+    // Fallback: TypeScript scraper (no Go worker configured)
+    void (async () => {
+      try {
+        await scrapeProductsFromSitemap(url, async (batchProducts, scraped, total) => {
+          await upsertProducts(userId, sitemapId, batchProducts);
+          await updateSitemapProgress(sitemapId, scraped, total);
+        });
+        await markSitemapDone(sitemapId);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to scrape sitemap";
+        await markSitemapFailed(sitemapId, message);
+      }
+    })();
+  }
 
   return NextResponse.json({ id: sitemapId }, { status: 202 });
 }

@@ -52,18 +52,41 @@ export async function POST(
   await resetSitemapForResync(id, session.user.id);
   const userId = session.user.id;
 
-  void (async () => {
-    try {
-      const products = await scrapeProductsFromSitemap(sitemap.url, async (scraped, total) => {
-        await updateSitemapProgress(id, scraped, total);
-      });
-      await upsertProducts(userId, id, products);
-      await markSitemapDone(id);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to scrape sitemap";
-      await markSitemapFailed(id, message);
-    }
-  })();
+  const crawlerWorkerURL = process.env.CRAWLER_WORKER_URL?.replace(/\/$/, "");
+  const workerSecret = process.env.WORKER_SECRET ?? "";
+
+  if (crawlerWorkerURL && workerSecret) {
+    void fetch(`${crawlerWorkerURL}/jobs`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${workerSecret}`,
+      },
+      body: JSON.stringify({
+        sitemap_url:      sitemap.url,
+        sitemap_id:       id,
+        console_user_id:  userId,
+        batch_size:       50,
+        batch_pause_secs: 120,
+      }),
+    }).catch((err) => {
+      console.error("[sitemap resync] go worker handoff failed:", err);
+      markSitemapFailed(id, "Worker handoff failed: " + String(err));
+    });
+  } else {
+    void (async () => {
+      try {
+        await scrapeProductsFromSitemap(sitemap.url, async (batchProducts, scraped, total) => {
+          await upsertProducts(userId, id, batchProducts);
+          await updateSitemapProgress(id, scraped, total);
+        });
+        await markSitemapDone(id);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to scrape sitemap";
+        await markSitemapFailed(id, message);
+      }
+    })();
+  }
 
   return NextResponse.json({ id });
 }

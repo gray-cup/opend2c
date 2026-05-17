@@ -57,7 +57,23 @@ func migrate() error {
 		);
 		CREATE INDEX IF NOT EXISTS idx_crawl_products_job_id ON crawl_products(job_id);
 	`)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Incremental migrations — safe to run on existing deployments
+	for _, stmt := range []string{
+		`ALTER TABLE crawl_jobs ADD COLUMN IF NOT EXISTS sitemap_url TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE crawl_jobs ADD COLUMN IF NOT EXISTS sitemap_id BIGINT NOT NULL DEFAULT 0`,
+		`ALTER TABLE crawl_jobs ADD COLUMN IF NOT EXISTS console_user_id TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE crawl_jobs ADD COLUMN IF NOT EXISTS batch_size INT NOT NULL DEFAULT 50`,
+		`ALTER TABLE crawl_jobs ADD COLUMN IF NOT EXISTS batch_pause_secs INT NOT NULL DEFAULT 120`,
+	} {
+		if _, err := db.Exec(context.Background(), stmt); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // ---- Write ----
@@ -65,9 +81,12 @@ func migrate() error {
 func dbCreateJob(j *Job) error {
 	sites, _ := json.Marshal(j.Sites)
 	_, err := db.Exec(context.Background(),
-		`INSERT INTO crawl_jobs (id, sites, max_products, status, created_at, updated_at)
-		 VALUES ($1, $2, $3, $4, $5, $6)`,
-		j.ID, string(sites), j.MaxProducts, j.Status, j.CreatedAt, j.UpdatedAt,
+		`INSERT INTO crawl_jobs
+		   (id, sites, sitemap_url, sitemap_id, console_user_id, max_products, batch_size, batch_pause_secs, status, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+		j.ID, string(sites), j.SitemapURL, j.SitemapID, j.ConsoleUserID,
+		j.MaxProducts, j.BatchSize, j.BatchPauseSecs,
+		j.Status, j.CreatedAt, j.UpdatedAt,
 	)
 	return err
 }
@@ -121,7 +140,9 @@ func dbInsertVariants(productID int64, variants []Variant) error {
 
 func dbGetJob(id string) (*Job, error) {
 	row := db.QueryRow(context.Background(),
-		`SELECT id, sites, max_products, status, scraped, skipped, total, COALESCE(error,''), created_at, updated_at
+		`SELECT id, sites, sitemap_url, sitemap_id, console_user_id,
+		        max_products, batch_size, batch_pause_secs,
+		        status, scraped, skipped, total, COALESCE(error,''), created_at, updated_at
 		 FROM crawl_jobs WHERE id=$1`, id,
 	)
 	return scanJob(row)
@@ -129,7 +150,9 @@ func dbGetJob(id string) (*Job, error) {
 
 func dbListJobs() ([]*Job, error) {
 	rows, err := db.Query(context.Background(),
-		`SELECT id, sites, max_products, status, scraped, skipped, total, COALESCE(error,''), created_at, updated_at
+		`SELECT id, sites, sitemap_url, sitemap_id, console_user_id,
+		        max_products, batch_size, batch_pause_secs,
+		        status, scraped, skipped, total, COALESCE(error,''), created_at, updated_at
 		 FROM crawl_jobs ORDER BY created_at DESC`,
 	)
 	if err != nil {
@@ -207,7 +230,9 @@ func scanJob(s scanner) (*Job, error) {
 	var sitesJSON, errStr string
 	var createdAt, updatedAt time.Time
 	if err := s.Scan(
-		&j.ID, &sitesJSON, &j.MaxProducts, &j.Status,
+		&j.ID, &sitesJSON, &j.SitemapURL, &j.SitemapID, &j.ConsoleUserID,
+		&j.MaxProducts, &j.BatchSize, &j.BatchPauseSecs,
+		&j.Status,
 		&j.Progress.Scraped, &j.Progress.Skipped, &j.Progress.Total,
 		&errStr, &createdAt, &updatedAt,
 	); err != nil {

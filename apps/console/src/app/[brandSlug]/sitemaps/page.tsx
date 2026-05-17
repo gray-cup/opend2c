@@ -141,8 +141,17 @@ export default function SitemapsPage() {
     openSSE(id);
   }
 
+  const BATCH_SIZE = 50;
+
   const pct = progress && progress.total > 0
     ? Math.round((progress.scraped / progress.total) * 100)
+    : null;
+
+  const batchInfo = progress && progress.total > 0
+    ? {
+        current: Math.ceil(progress.scraped / BATCH_SIZE),
+        total: Math.ceil(progress.total / BATCH_SIZE),
+      }
     : null;
 
   const successCount  = sitemaps.filter((s) => s.status === "done").length;
@@ -191,7 +200,11 @@ export default function SitemapsPage() {
                 {progress.status === "running" && <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />}
                 {progress.status === "done"    && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />}
                 {progress.status === "failed"  && <span className="h-1.5 w-1.5 rounded-full bg-red-500" />}
-                {progress.status === "running" ? "Scraping…" : progress.status === "done" ? "Done" : "Failed"}
+                {progress.status === "running"
+                  ? batchInfo
+                    ? `Scraping batch ${batchInfo.current} of ${batchInfo.total}…`
+                    : "Scraping…"
+                  : progress.status === "done" ? "Done" : "Failed"}
               </span>
               <span className="tabular-nums">
                 {progress.scraped}{progress.total > 0 ? ` / ${progress.total}` : ""} products
@@ -254,16 +267,29 @@ export default function SitemapsPage() {
                 const rowPct = sitemap.status === "running" && sitemap.progress_total > 0
                   ? Math.round((sitemap.progress_scraped / sitemap.progress_total) * 100)
                   : null;
+                const rowBatch = sitemap.status === "running" && sitemap.progress_total > 0
+                  ? {
+                      current: Math.ceil(sitemap.progress_scraped / BATCH_SIZE),
+                      total: Math.ceil(sitemap.progress_total / BATCH_SIZE),
+                    }
+                  : null;
                 return (
                   <tr key={sitemap.id} className="border-b border-gray-50 hover:bg-gray-50/60 transition-colors last:border-0">
                     <td className="px-5 py-3">
                       <span className="text-[11px] font-mono text-gray-600">{sitemap.url}</span>
                       {sitemap.status === "running" && (
-                        <div className="mt-1.5 h-1 w-48 bg-gray-100 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-blue-400 rounded-full transition-all duration-500"
-                            style={{ width: rowPct !== null ? `${rowPct}%` : "8%" }}
-                          />
+                        <div className="mt-1.5 space-y-0.5">
+                          {rowBatch && (
+                            <p className="text-[10px] text-blue-500">
+                              Batch {rowBatch.current} / {rowBatch.total} · {sitemap.progress_scraped} of {sitemap.progress_total} products
+                            </p>
+                          )}
+                          <div className="h-1 w-48 bg-gray-100 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-blue-400 rounded-full transition-all duration-500"
+                              style={{ width: rowPct !== null ? `${rowPct}%` : "8%" }}
+                            />
+                          </div>
                         </div>
                       )}
                       {sitemap.error && (

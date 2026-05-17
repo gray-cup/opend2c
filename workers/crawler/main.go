@@ -14,7 +14,53 @@ import (
 	"time"
 )
 
+const defaultBatchSize      = 50
+const defaultBatchPauseSecs = 120
+
 // ---- Crawl runner ----
+
+type productEntry struct {
+	entry    URLEntry
+	shopName string
+}
+
+// collectEntries resolves all product URLs from either a direct sitemap URL or
+// by discovering sitemaps from each base site URL.
+func collectEntries(j *Job) ([]productEntry, error) {
+	var all []productEntry
+
+	if j.SitemapURL != "" {
+		entries, err := getProductURLs(j.SitemapURL)
+		if err != nil {
+			return nil, fmt.Errorf("fetch sitemap %s: %w", j.SitemapURL, err)
+		}
+		shop := shopLabel(j.SitemapURL)
+		for _, e := range entries {
+			all = append(all, productEntry{entry: e, shopName: shop})
+		}
+		return all, nil
+	}
+
+	for _, site := range j.Sites {
+		sitemaps, err := getProductSitemaps(site)
+		if err != nil {
+			log.Printf("[collect] sitemap index error for %s: %v", site, err)
+			continue
+		}
+		shop := shopLabel(site)
+		for _, sm := range sitemaps {
+			entries, err := getProductURLs(sm)
+			if err != nil {
+				log.Printf("[collect] sitemap parse error %s: %v", sm, err)
+				continue
+			}
+			for _, e := range entries {
+				all = append(all, productEntry{entry: e, shopName: shop})
+			}
+		}
+	}
+	return all, nil
+}
 
 func processJob(ctx context.Context, jobID string) {
 	j, err := dbGetJob(jobID)
@@ -27,64 +73,98 @@ func processJob(ctx context.Context, jobID string) {
 	dbSetStatus(jobID, StatusRunning)
 	publishProgress(ctx, jobID, ProgressEvent{Type: "running"})
 
-	scraped, skipped, total := 0, 0, 0
+	// Resolve batch config with defaults
+	batchSize := j.BatchSize
+	if batchSize <= 0 {
+		batchSize = defaultBatchSize
+	}
+	batchPause := time.Duration(j.BatchPauseSecs) * time.Second
+	if j.BatchPauseSecs <= 0 {
+		batchPause = defaultBatchPauseSecs * time.Second
+	}
 
-	for _, site := range j.Sites {
-		if scraped >= j.MaxProducts {
-			break
+	// Collect all product URLs upfront
+	allEntries, err := collectEntries(j)
+	if err != nil {
+		log.Printf("[job %s] collect entries failed: %v", jobID, err)
+		dbSetError(jobID, err.Error())
+		return
+	}
+
+	// Apply MaxProducts cap
+	if j.MaxProducts > 0 && len(allEntries) > j.MaxProducts {
+		allEntries = allEntries[:j.MaxProducts]
+	}
+
+	total := len(allEntries)
+	totalBatches := (total + batchSize - 1) / batchSize
+	if totalBatches == 0 {
+		totalBatches = 1
+	}
+
+	log.Printf("[job %s] %d URLs across %d batches (pause %v)", jobID, total, totalBatches, batchPause)
+
+	dbUpdateProgress(jobID, 0, 0, total)
+	publishProgress(ctx, jobID, ProgressEvent{
+		Type: "progress", Total: total, TotalBatches: totalBatches,
+	})
+
+	scraped, skipped := 0, 0
+
+	for batchIdx := 0; batchIdx < totalBatches; batchIdx++ {
+		if batchIdx > 0 {
+			msg := fmt.Sprintf("Pausing %v before batch %d/%d…", batchPause, batchIdx+1, totalBatches)
+			log.Printf("[job %s] %s", jobID, msg)
+			publishProgress(ctx, jobID, ProgressEvent{
+				Type: "progress", Scraped: scraped, Skipped: skipped, Total: total,
+				Batch: batchIdx, TotalBatches: totalBatches, Message: msg,
+			})
+			time.Sleep(batchPause)
 		}
 
-		sitemaps, err := getProductSitemaps(site)
-		if err != nil {
-			log.Printf("[job %s] sitemap error for %s: %v", jobID, site, err)
-			continue
+		start := batchIdx * batchSize
+		end := start + batchSize
+		if end > len(allEntries) {
+			end = len(allEntries)
 		}
+		batch := allEntries[start:end]
 
-		shopName := shopLabel(site)
+		log.Printf("[job %s] batch %d/%d: scraping %d URLs", jobID, batchIdx+1, totalBatches, len(batch))
 
-		for _, sm := range sitemaps {
-			if scraped >= j.MaxProducts {
-				break
-			}
+		var batchProds []*Product
 
-			entries, err := getProductURLs(sm)
+		for _, pe := range batch {
+			p, err := scrapeProduct(pe.entry, pe.shopName)
 			if err != nil {
-				log.Printf("[job %s] sitemap parse error: %v", jobID, err)
+				log.Printf("[job %s] skip %s: %v", jobID, pe.entry.Loc, err)
+				skipped++
+				dbUpdateProgress(jobID, scraped, skipped, total)
 				continue
 			}
 
-			total += len(entries)
+			pid, err := dbInsertProduct(jobID, p)
+			if err != nil {
+				log.Printf("[job %s] db insert: %v", jobID, err)
+				continue
+			}
+			dbInsertVariants(pid, p.Variants)
+
+			batchProds = append(batchProds, p)
+			scraped++
+
 			dbUpdateProgress(jobID, scraped, skipped, total)
 			publishProgress(ctx, jobID, ProgressEvent{
 				Type: "progress", Scraped: scraped, Skipped: skipped, Total: total,
+				Batch: batchIdx + 1, TotalBatches: totalBatches,
+				Product: p,
 			})
+		}
 
-			for _, entry := range entries {
-				if scraped >= j.MaxProducts {
-					break
-				}
+		log.Printf("[job %s] batch %d/%d done: %d scraped this batch", jobID, batchIdx+1, totalBatches, len(batchProds))
 
-				p, err := scrapeProduct(entry, shopName)
-				if err != nil {
-					log.Printf("[job %s] skip %s: %v", jobID, entry.Loc, err)
-					skipped++
-					dbUpdateProgress(jobID, scraped, skipped, total)
-					continue
-				}
-
-				pid, err := dbInsertProduct(jobID, p)
-				if err != nil {
-					log.Printf("[job %s] db insert: %v", jobID, err)
-					continue
-				}
-				dbInsertVariants(pid, p.Variants)
-
-				scraped++
-				dbUpdateProgress(jobID, scraped, skipped, total)
-				publishProgress(ctx, jobID, ProgressEvent{
-					Type: "progress", Scraped: scraped, Skipped: skipped, Total: total, Product: p,
-				})
-			}
+		// Sync this batch's products to the console immediately
+		if len(batchProds) > 0 {
+			syncBatchToConsole(j, batchProds, scraped, total, batchIdx+1 == totalBatches)
 		}
 	}
 
@@ -93,25 +173,17 @@ func processJob(ctx context.Context, jobID string) {
 		Type: "done", Scraped: scraped, Skipped: skipped, Total: total,
 	})
 	log.Printf("[job %s] done: %d scraped, %d skipped", jobID, scraped, skipped)
-
-	go syncJobToConsole(jobID)
 }
 
-// syncJobToConsole pushes completed job products to the console's scraper_products
-// table so they appear on the public marketplace.
-func syncJobToConsole(jobID string) {
+// syncBatchToConsole pushes one batch of scraped products to the console.
+// When done=true it also signals the console to mark the sitemap as done.
+func syncBatchToConsole(j *Job, products []*Product, scraped, total int, done bool) {
 	consoleURL := os.Getenv("CONSOLE_URL")
 	if consoleURL == "" {
-		log.Printf("[sync %s] CONSOLE_URL not set, skipping sync", jobID)
+		log.Printf("[sync %s] CONSOLE_URL not set, skipping sync", j.ID)
 		return
 	}
 	secret := os.Getenv("WORKER_SECRET")
-
-	products, err := dbGetProducts(jobID)
-	if err != nil {
-		log.Printf("[sync %s] fetch products: %v", jobID, err)
-		return
-	}
 
 	type syncProduct struct {
 		SourceURL string  `json:"source_url"`
@@ -123,15 +195,23 @@ func syncJobToConsole(jobID string) {
 	}
 
 	var payload struct {
-		JobID    string        `json:"jobId"`
-		Products []syncProduct `json:"products"`
+		JobID         string        `json:"jobId"`
+		SitemapID     int64         `json:"sitemapId,omitempty"`
+		ConsoleUserID string        `json:"consoleUserId,omitempty"`
+		Scraped       int           `json:"scraped"`
+		Total         int           `json:"total"`
+		Done          bool          `json:"done"`
+		Products      []syncProduct `json:"products"`
 	}
-	payload.JobID = jobID
+	payload.JobID = j.ID
+	payload.SitemapID = j.SitemapID
+	payload.ConsoleUserID = j.ConsoleUserID
+	payload.Scraped = scraped
+	payload.Total = total
+	payload.Done = done
+
 	for _, p := range products {
-		sp := syncProduct{
-			Title: p.Name,
-			Shop:  p.Shop,
-		}
+		sp := syncProduct{Title: p.Name, Shop: p.Shop}
 		if p.Image != "" {
 			sp.Image = &p.Image
 		}
@@ -146,9 +226,13 @@ func syncJobToConsole(jobID string) {
 			sp.Currency = &v.Currency
 		}
 		if sp.SourceURL == "" {
-			continue // skip products with no URL
+			continue
 		}
 		payload.Products = append(payload.Products, sp)
+	}
+
+	if len(payload.Products) == 0 {
+		return
 	}
 
 	body, _ := json.Marshal(payload)
@@ -157,7 +241,7 @@ func syncJobToConsole(jobID string) {
 		strings.NewReader(string(body)),
 	)
 	if err != nil {
-		log.Printf("[sync %s] build request: %v", jobID, err)
+		log.Printf("[sync %s] build request: %v", j.ID, err)
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
@@ -165,11 +249,12 @@ func syncJobToConsole(jobID string) {
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		log.Printf("[sync %s] request failed: %v", jobID, err)
+		log.Printf("[sync %s] request failed: %v", j.ID, err)
 		return
 	}
 	defer resp.Body.Close()
-	log.Printf("[sync %s] console sync → %d (%d products)", jobID, resp.StatusCode, len(payload.Products))
+	log.Printf("[sync %s] batch sync → %d (%d products, %d/%d scraped, done=%v)",
+		j.ID, resp.StatusCode, len(payload.Products), scraped, total, done)
 }
 
 func workerLoop(ctx context.Context) {
@@ -186,13 +271,10 @@ func workerLoop(ctx context.Context) {
 
 // ---- HTTP helpers ----
 
-// allowedOrigins returns the set of permitted CORS origins from the
-// ALLOWED_ORIGINS env var (comma-separated). Falls back to "*" when unset so
-// local dev works without extra config.
 func allowedOrigins() map[string]bool {
 	raw := os.Getenv("ALLOWED_ORIGINS")
 	if raw == "" {
-		return nil // nil == allow all
+		return nil
 	}
 	set := make(map[string]bool)
 	for _, o := range strings.Split(raw, ",") {
@@ -210,18 +292,15 @@ func cors(next http.HandlerFunc) http.HandlerFunc {
 		origin := r.Header.Get("Origin")
 
 		if originSet == nil {
-			// Dev mode — allow everything
 			w.Header().Set("Access-Control-Allow-Origin", "*")
 		} else if origin != "" && originSet[origin] {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Vary", "Origin")
 		} else if origin != "" {
-			// Known-bad origin — reject preflight immediately
 			if r.Method == http.MethodOptions {
 				w.WriteHeader(http.StatusForbidden)
 				return
 			}
-			// Let the browser enforce for non-preflight; don't set the header
 		}
 
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
@@ -235,15 +314,6 @@ func cors(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// requireAuth validates the shared WORKER_SECRET.
-//
-// Callers must send one of:
-//   - Header:         Authorization: Bearer <secret>
-//   - Query param:    ?token=<secret>   (needed for browser EventSource which
-//                     cannot set custom headers)
-//
-// The secret is read from the WORKER_SECRET env var. If the var is empty the
-// server refuses all requests with 500 so misconfiguration is obvious.
 func requireAuth(next http.HandlerFunc) http.HandlerFunc {
 	secret := os.Getenv("WORKER_SECRET")
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -253,7 +323,6 @@ func requireAuth(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		// Extract token from header or query param
 		token := ""
 		if auth := r.Header.Get("Authorization"); strings.HasPrefix(auth, "Bearer ") {
 			token = strings.TrimPrefix(auth, "Bearer ")
@@ -284,23 +353,34 @@ func handleCreateJob(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
 		return
 	}
-	if len(req.Sites) == 0 {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "sites required"})
+	if len(req.Sites) == 0 && req.SitemapURL == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "sites or sitemap_url required"})
 		return
 	}
 	if req.MaxProducts <= 0 {
-		req.MaxProducts = 500
+		req.MaxProducts = 0 // 0 = unlimited when using direct sitemap URL
+	}
+	if req.BatchSize <= 0 {
+		req.BatchSize = defaultBatchSize
+	}
+	if req.BatchPauseSecs <= 0 {
+		req.BatchPauseSecs = defaultBatchPauseSecs
 	}
 
 	now := time.Now()
 	j := &Job{
-		ID:          genID(),
-		Sites:       req.Sites,
-		MaxProducts: req.MaxProducts,
-		Status:      StatusQueued,
-		Products:    []Product{},
-		CreatedAt:   now,
-		UpdatedAt:   now,
+		ID:             genID(),
+		Sites:          req.Sites,
+		SitemapURL:     req.SitemapURL,
+		SitemapID:      req.SitemapID,
+		ConsoleUserID:  req.ConsoleUserID,
+		MaxProducts:    req.MaxProducts,
+		BatchSize:      req.BatchSize,
+		BatchPauseSecs: req.BatchPauseSecs,
+		Status:         StatusQueued,
+		Products:       []Product{},
+		CreatedAt:      now,
+		UpdatedAt:      now,
 	}
 
 	if err := dbCreateJob(j); err != nil {
@@ -335,7 +415,6 @@ func handleListJobs(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, list)
 }
 
-// handleJobEvents streams Redis pub/sub for a job as Server-Sent Events.
 func handleJobEvents(w http.ResponseWriter, r *http.Request, id string) {
 	j, err := dbGetJob(id)
 	if err != nil {
@@ -354,7 +433,6 @@ func handleJobEvents(w http.ResponseWriter, r *http.Request, id string) {
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("X-Accel-Buffering", "no")
 
-	// Send a snapshot of current state immediately so the client isn't blank.
 	snap, _ := json.Marshal(ProgressEvent{
 		Type:    "state",
 		Scraped: j.Progress.Scraped,
@@ -364,7 +442,6 @@ func handleJobEvents(w http.ResponseWriter, r *http.Request, id string) {
 	fmt.Fprintf(w, "data: %s\n\n", snap)
 	flusher.Flush()
 
-	// Already finished — no need to subscribe.
 	if j.Status == StatusDone || j.Status == StatusFailed {
 		done, _ := json.Marshal(ProgressEvent{Type: string(j.Status)})
 		fmt.Fprintf(w, "data: %s\n\n", done)
@@ -403,7 +480,6 @@ func handleJobEvents(w http.ResponseWriter, r *http.Request, id string) {
 // ---- Router ----
 
 func handleJobs(w http.ResponseWriter, r *http.Request) {
-	// /jobs, /jobs/, /jobs/<id>, /jobs/<id>/events
 	tail := strings.TrimPrefix(r.URL.Path, "/jobs")
 	tail = strings.TrimPrefix(tail, "/")
 
@@ -423,7 +499,6 @@ func handleJobs(w http.ResponseWriter, r *http.Request) {
 		handleJobEvents(w, r, id)
 
 	default:
-		// tail is the job ID
 		if r.Method == http.MethodGet {
 			handleGetJob(w, r, tail)
 		} else {
@@ -446,12 +521,10 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	// /health is unauthenticated so VPS health-checks / uptime monitors work
 	mux.HandleFunc("/health", cors(func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	}))
 
-	// All job endpoints require a valid WORKER_SECRET
 	mux.HandleFunc("/jobs", cors(requireAuth(handleJobs)))
 	mux.HandleFunc("/jobs/", cors(requireAuth(handleJobs)))
 
