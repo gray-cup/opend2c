@@ -12,6 +12,25 @@ type Product = {
   shop: string;
   price: string | null;
   currency: string | null;
+  category: string | null;
+};
+
+const CATEGORY_ICONS: Record<string, string> = {
+  "Skincare": "✨",
+  "Haircare": "💆",
+  "Bath & Body": "🛁",
+  "Wellness": "🌿",
+  "Coffee": "☕",
+  "Tea": "🍵",
+  "Masala & Spices": "🌶️",
+  "Food & Snacks": "🍿",
+  "Clothing": "👗",
+  "Shoes": "👟",
+  "Accessories": "💎",
+  "Bags": "👜",
+  "Jewellery": "💍",
+  "Fragrances": "🌸",
+  "Home & Living": "🏡",
 };
 
 function shuffle<T>(arr: T[]): T[] {
@@ -24,9 +43,20 @@ function shuffle<T>(arr: T[]): T[] {
 }
 
 export default function ProductBrowser({ products }: { products: Product[] }) {
-  const [query, setQuery] = useState("");
+  const [query, setQuery]         = useState("");
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const shuffled = useMemo(() => shuffle(products), []);
+  const shuffled = useMemo(() => shuffle(products).slice(0, 30), []);
+
+  // Derive categories that actually have products
+  const categories = useMemo(() => {
+    const seen = new Set<string>();
+    for (const p of products) {
+      if (p.category) seen.add(p.category);
+    }
+    return [...seen].sort();
+  }, [products]);
 
   function trackClick(id: number) {
     fetch("/api/track-click", {
@@ -36,17 +66,50 @@ export default function ProductBrowser({ products }: { products: Product[] }) {
     }).catch(() => {});
   }
 
-  const filtered = shuffled.filter((p) => {
+  const filtered = (activeCategory ? products : shuffled).filter((p) => {
+    if (activeCategory && p.category !== activeCategory) return false;
     const q = query.toLowerCase();
     return (
       !q ||
       p.title.toLowerCase().includes(q) ||
-      p.shop.toLowerCase().includes(q)
+      p.shop.toLowerCase().includes(q) ||
+      (p.category ?? "").toLowerCase().includes(q)
     );
   });
 
   return (
     <div>
+      {/* Category pills */}
+      {categories.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-6">
+          <button
+            onClick={() => setActiveCategory(null)}
+            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+              activeCategory === null
+                ? "bg-neutral-900 text-white"
+                : "bg-white border border-neutral-200 text-neutral-600 hover:border-neutral-400"
+            }`}
+          >
+            All
+          </button>
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setActiveCategory(activeCategory === cat ? null : cat)}
+              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors flex items-center gap-1.5 ${
+                activeCategory === cat
+                  ? "bg-neutral-900 text-white"
+                  : "bg-white border border-neutral-200 text-neutral-600 hover:border-neutral-400"
+              }`}
+            >
+              {CATEGORY_ICONS[cat] && <span>{CATEGORY_ICONS[cat]}</span>}
+              {cat}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Search box */}
       <div className="w-full max-w-xl mb-8">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400 pointer-events-none" />
@@ -64,12 +127,14 @@ export default function ProductBrowser({ products }: { products: Product[] }) {
         <p className="text-sm text-neutral-400 py-10">No products listed yet.</p>
       ) : filtered.length === 0 ? (
         <p className="text-sm text-neutral-400 py-10 text-center">
-          No results for &ldquo;{query}&rdquo;
+          No results for &ldquo;{query || activeCategory}&rdquo;
         </p>
       ) : (
         <>
           <p className="text-xs text-neutral-400 uppercase tracking-widest font-medium mb-4">
-            {filtered.length} {filtered.length === 1 ? "product" : "products"}
+            {activeCategory || query
+              ? `${filtered.length} ${filtered.length === 1 ? "product" : "products"}`
+              : `Showing 30 of ${products.length} products`}
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {filtered.map((p) => (
@@ -99,6 +164,11 @@ export default function ProductBrowser({ products }: { products: Product[] }) {
                     {p.title}
                   </h3>
                   <p className="text-xs text-neutral-500 mb-2">{p.shop}</p>
+                  {p.category && (
+                    <span className="inline-block self-start rounded-full px-2 py-0.5 text-[10px] font-medium bg-neutral-100 text-neutral-500 mb-2">
+                      {p.category}
+                    </span>
+                  )}
                   {p.price && (
                     <span className="text-sm font-semibold text-neutral-900 mt-auto">
                       {p.currency ? `${p.currency} ${p.price}` : p.price}

@@ -43,6 +43,11 @@ export async function PATCH(req: NextRequest) {
     }
   }
 
+  if ("category" in body) {
+    const v = body.category;
+    input.category = typeof v === "string" && v.trim() ? v.trim() : null;
+  }
+
   if ("image" in body) {
     const v = body.image;
     input.image = typeof v === "string" && v.trim() ? v.trim() : null;

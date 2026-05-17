@@ -9,12 +9,17 @@ function parseSort(raw: string | null): SortOption {
 }
 
 export async function GET(req: NextRequest) {
-  const q = req.nextUrl.searchParams.get("q")?.trim() ?? "";
-  const sort = parseSort(req.nextUrl.searchParams.get("sort"));
+  const q        = req.nextUrl.searchParams.get("q")?.trim() ?? "";
+  const sort     = parseSort(req.nextUrl.searchParams.get("sort"));
+  const category = req.nextUrl.searchParams.get("category")?.trim() ?? "";
 
-  const products = q
+  let products = q
     ? await searchActiveProducts(q, sort)
     : await getAllActiveProducts(sort === "relevance" ? "newest" : sort);
+
+  if (category) {
+    products = products.filter((p) => p.category === category);
+  }
 
   return NextResponse.json(products);
 }

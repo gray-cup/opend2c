@@ -11,6 +11,7 @@ type Product = {
   shop: string;
   price: string | null;
   currency: string | null;
+  category: string | null;
 };
 
 const VALID_SORTS = new Set<SortValue>(["relevance", "price_asc", "price_desc", "newest"]);
@@ -103,6 +104,11 @@ export default async function SearchPage({
                   {p.title}
                 </h3>
                 <p className="text-xs text-neutral-500 mb-2">{p.shop}</p>
+                {p.category && (
+                  <span className="inline-block self-start rounded-full px-2 py-0.5 text-[10px] font-medium bg-neutral-100 text-neutral-500 mb-2">
+                    {p.category}
+                  </span>
+                )}
                 {p.price && (
                   <span className="text-sm font-semibold text-neutral-900 mt-auto">
                     {p.currency ? `${p.currency} ${p.price}` : p.price}

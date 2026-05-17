@@ -15,11 +15,30 @@ type Product = {
   shop: string;
   price: string | null;
   currency: string | null;
+  category: string | null;
   status: ProductStatus;
   notes: string;
   click_count: number;
   updated_at: string;
 };
+
+const CATEGORIES = [
+  "Skincare",
+  "Haircare",
+  "Bath & Body",
+  "Wellness",
+  "Coffee",
+  "Tea",
+  "Masala & Spices",
+  "Food & Snacks",
+  "Clothing",
+  "Shoes",
+  "Accessories",
+  "Bags",
+  "Jewellery",
+  "Fragrances",
+  "Home & Living",
+] as const;
 
 const PAGE = 10;
 const FILTERS: FilterValue[] = ["all", "draft", "active", "archived"];
@@ -436,6 +455,7 @@ function ProductsPageInner() {
         title:    form.get("title"),
         price:    form.get("price"),
         currency: form.get("currency"),
+        category: form.get("category") || null,
         status:   form.get("status"),
         notes:    form.get("notes"),
       }),
@@ -627,6 +647,7 @@ function ProductsPageInner() {
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Product</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Shop</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Category</th>
                       <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500">Price</th>
                       <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500">Clicks</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Status</th>
@@ -658,6 +679,15 @@ function ProductsPageInner() {
                             </div>
                           </td>
                           <td className="px-4 py-3 text-xs text-gray-500 cursor-pointer" onClick={() => setSelected(product)}>{product.shop}</td>
+                          <td className="px-4 py-3 cursor-pointer" onClick={() => setSelected(product)}>
+                            {product.category ? (
+                              <span className="rounded-full px-2 py-0.5 text-[10px] font-medium bg-blue-50 text-blue-600 whitespace-nowrap">
+                                {product.category}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-gray-300">—</span>
+                            )}
+                          </td>
                           <td className="px-4 py-3 text-right text-xs tabular-nums text-gray-700 cursor-pointer" onClick={() => setSelected(product)}>
                             {product.price ? `${product.currency ?? ""} ${product.price}`.trim() : "—"}
                           </td>
@@ -766,6 +796,16 @@ function ProductsPageInner() {
                           className="mt-1 w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-400" />
                       </label>
                     </div>
+                    <label className="block">
+                      <span className="text-xs font-medium text-gray-700">Category</span>
+                      <select name="category" defaultValue={selected.category ?? ""}
+                        className="mt-1 w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-gray-400">
+                        <option value="">— Uncategorised —</option>
+                        {CATEGORIES.map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
+                    </label>
                     <label className="block">
                       <span className="text-xs font-medium text-gray-700">Status</span>
                       <select name="status" defaultValue={selected.status}

@@ -11,6 +11,7 @@ type Product = {
   shop: string;
   price: string | null;
   currency: string | null;
+  category: string | null;
 };
 
 async function fetchProducts(): Promise<Product[]> {

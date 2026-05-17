@@ -40,6 +40,7 @@ export type SavedProduct = {
   shop: string;
   price: string | null;
   currency: string | null;
+  category: string | null;
   status: "draft" | "active" | "archived";
   notes: string;
   click_count: number;
@@ -50,6 +51,7 @@ export type SavedProduct = {
 export const BRAND_CATEGORIES = [
   "Skincare",
   "Haircare",
+  "Bath & Body",
   "Wellness",
   "Coffee",
   "Tea",
@@ -160,6 +162,10 @@ export async function ensureScraperTables() {
 
   await db.query(`
     ALTER TABLE brands ADD COLUMN IF NOT EXISTS categories TEXT[] NOT NULL DEFAULT '{}';
+  `).catch(() => {});
+
+  await db.query(`
+    ALTER TABLE scraper_products ADD COLUMN IF NOT EXISTS category TEXT;
   `).catch(() => {});
 
   // Full-text + trigram search indexes
@@ -352,7 +358,7 @@ export async function listProducts(
     db.query<{ count: string }>(`SELECT COUNT(*)::text AS count ${fromJoin} WHERE ${where}`, values),
     db.query<SavedProduct>(
       `SELECT p.id, p.sitemap_id, p.source_url, p.title, p.image, p.shop, p.price, p.currency,
-              p.status, p.notes, p.click_count, p.created_at::text, p.updated_at::text
+              p.category, p.status, p.notes, p.click_count, p.created_at::text, p.updated_at::text
        ${fromJoin}
        WHERE ${where}
        ORDER BY p.updated_at DESC, p.id DESC
@@ -367,7 +373,7 @@ export async function listProducts(
 export async function updateProduct(
   userId: string,
   id: number,
-  input: Partial<Pick<SavedProduct, "title" | "price" | "currency" | "status" | "notes">>,
+  input: Partial<Pick<SavedProduct, "title" | "price" | "currency" | "category" | "status" | "notes">>,
 ) {
   const fields: string[] = [];
   const values: unknown[] = [];
@@ -386,7 +392,7 @@ export async function updateProduct(
       SET ${fields.join(", ")}, updated_at=NOW()
       WHERE user_id = $${values.length - 1} AND id = $${values.length}
       RETURNING id, sitemap_id, source_url, title, image, shop, price, currency,
-                status, notes, click_count, created_at::text, updated_at::text
+                category, status, notes, click_count, created_at::text, updated_at::text
     `,
     values,
   );
@@ -570,7 +576,7 @@ export async function getPublicProducts(
   const { rows } = await db.query<SavedProduct>(
     `
       SELECT p.id, p.sitemap_id, p.source_url, p.title, p.image, p.shop, p.price, p.currency,
-             p.status, p.notes, p.created_at::text, p.updated_at::text
+             p.category, p.status, p.notes, p.created_at::text, p.updated_at::text
       FROM scraper_products p
       JOIN scraper_sitemaps s ON s.id = p.sitemap_id
       WHERE s.brand_id = $1 AND p.status = 'active'
@@ -608,7 +614,7 @@ export async function getAllActiveProducts(sort: SortOption = "newest"): Promise
   const { rows } = await db.query<SavedProduct>(
     `
       SELECT id, sitemap_id, source_url, title, image, shop, price, currency,
-             status, notes, created_at::text, updated_at::text
+             category, status, notes, created_at::text, updated_at::text
       FROM scraper_products
       WHERE status = 'active'
       ORDER BY ${orderBy}
@@ -630,17 +636,17 @@ export async function searchActiveProducts(q: string, sort: SortOption = "releva
         : sort === "newest"
           ? `created_at DESC, id DESC`
           : `(
-          ts_rank(to_tsvector('english', title || ' ' || shop), plainto_tsquery('english', $1))
+          ts_rank(to_tsvector('english', title || ' ' || shop || ' ' || COALESCE(category, '')), plainto_tsquery('english', $1))
           + greatest(similarity(title, $1), similarity(shop, $1))
         ) DESC`;
   const { rows } = await db.query<SavedProduct>(
     `
       SELECT id, sitemap_id, source_url, title, image, shop, price, currency,
-             status, notes, created_at::text, updated_at::text
+             category, status, notes, created_at::text, updated_at::text
       FROM scraper_products
       WHERE status = 'active'
         AND (
-          to_tsvector('english', title || ' ' || shop) @@ plainto_tsquery('english', $1)
+          to_tsvector('english', title || ' ' || shop || ' ' || COALESCE(category, '')) @@ plainto_tsquery('english', $1)
           OR similarity(title, $1) > 0.12
           OR similarity(shop, $1)  > 0.2
         )
