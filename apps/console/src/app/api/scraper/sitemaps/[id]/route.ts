@@ -56,23 +56,25 @@ export async function POST(
   const workerSecret = process.env.WORKER_SECRET ?? "";
 
   if (crawlerWorkerURL && workerSecret) {
-    void fetch(`${crawlerWorkerURL}/jobs`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${workerSecret}`,
-      },
-      body: JSON.stringify({
-        sitemap_url:      sitemap.url,
-        sitemap_id:       id,
-        console_user_id:  userId,
-        batch_size:       50,
-        batch_pause_secs: 120,
-      }),
-    }).catch((err) => {
+    try {
+      await fetch(`${crawlerWorkerURL}/jobs`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${workerSecret}`,
+        },
+        body: JSON.stringify({
+          sitemap_url:      sitemap.url,
+          sitemap_id:       id,
+          console_user_id:  userId,
+          batch_size:       50,
+          batch_pause_secs: 120,
+        }),
+      });
+    } catch (err) {
       console.error("[sitemap resync] go worker handoff failed:", err);
-      markSitemapFailed(id, "Worker handoff failed: " + String(err));
-    });
+      await markSitemapFailed(id, "Worker handoff failed: " + String(err));
+    }
   } else {
     void (async () => {
       try {

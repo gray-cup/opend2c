@@ -54,24 +54,25 @@ export async function POST(req: NextRequest) {
   if (crawlerWorkerURL && workerSecret) {
     // Delegate to Go worker — it handles batching, rate-limit backoff, and
     // live progress syncing back to this sitemap record
-    void fetch(`${crawlerWorkerURL}/jobs`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${workerSecret}`,
-      },
-      body: JSON.stringify({
-        sitemap_url:     url,
-        sitemap_id:      sitemapId,
-        console_user_id: userId,
-        batch_size:      50,
-        batch_pause_secs: 120,
-      }),
-    }).catch((err) => {
+    try {
+      await fetch(`${crawlerWorkerURL}/jobs`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${workerSecret}`,
+        },
+        body: JSON.stringify({
+          sitemap_url:     url,
+          sitemap_id:      sitemapId,
+          console_user_id: userId,
+          batch_size:      50,
+          batch_pause_secs: 120,
+        }),
+      });
+    } catch (err) {
       console.error("[sitemap] go worker handoff failed:", err);
-      // If the worker call fails, fall back to marking it failed
-      markSitemapFailed(sitemapId, "Worker handoff failed: " + String(err));
-    });
+      await markSitemapFailed(sitemapId, "Worker handoff failed: " + String(err));
+    }
   } else {
     // Fallback: TypeScript scraper (no Go worker configured)
     void (async () => {
