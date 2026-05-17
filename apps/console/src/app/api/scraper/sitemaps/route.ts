@@ -70,8 +70,9 @@ export async function POST(req: NextRequest) {
         }),
       });
     } catch (err) {
-      console.error("[sitemap] go worker handoff failed:", err);
-      await markSitemapFailed(sitemapId, "Worker handoff failed: " + String(err));
+      const detail = err instanceof Error ? `${err.message} — ${(err as NodeJS.ErrnoException).cause ?? ""}` : String(err);
+      console.error("[sitemap] go worker handoff failed:", detail);
+      await markSitemapFailed(sitemapId, "Worker handoff failed: " + detail);
     }
   } else {
     // Fallback: TypeScript scraper (no Go worker configured)
