@@ -239,7 +239,7 @@ export default function SitemapsPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-white border border-gray-200 rounded-md overflow-hidden">
+      <div className="bg-white border border-gray-200 rounded-md overflow-visible">
         {loading ? (
           <div className="px-6 py-12 text-center text-sm text-gray-400">Loading sitemaps…</div>
         ) : sitemaps.length === 0 ? (
@@ -254,11 +254,11 @@ export default function SitemapsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-200 bg-gray-50">
-                <th className="px-5 py-2.5 text-left text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Sitemap URL</th>
+                <th className="px-5 py-2.5 text-left text-[10px] font-semibold text-gray-400 uppercase tracking-wide rounded-tl-md">Sitemap URL</th>
                 <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-400 uppercase tracking-wide w-28">Status</th>
                 <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-400 uppercase tracking-wide w-32">Added</th>
                 <th className="px-5 py-2.5 text-right text-[10px] font-semibold text-gray-400 uppercase tracking-wide w-28">Products</th>
-                <th className="px-3 py-2.5 w-10" />
+                <th className="px-3 py-2.5 w-10 rounded-tr-md" />
               </tr>
             </thead>
             <tbody>
