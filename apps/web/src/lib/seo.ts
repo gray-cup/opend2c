@@ -1,5 +1,6 @@
 export const SITE_NAME = "Open D2C";
 export const SITE_URL = process.env.SITE_URL || "https://opend2c.com";
+export const BLOG_TITLE = "Open D2C Blog — Indian D2C Insights & Guides";
 
 export function generateTitle(title: string) {
   const full = `${title} | ${SITE_NAME}`;

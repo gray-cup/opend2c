@@ -5,6 +5,20 @@ import rehypeHighlight from "rehype-highlight";
 
 const nextConfig: NextConfig = {
   pageExtensions: ["js", "jsx", "md", "mdx", "ts", "tsx"],
+  async redirects() {
+    return [
+      {
+        source: "/newsroom",
+        destination: "/blogs",
+        permanent: true,
+      },
+      {
+        source: "/newsroom/:slug",
+        destination: "/blogs/:slug",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 const withMDX = createMDX({
