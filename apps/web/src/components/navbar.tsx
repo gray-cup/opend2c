@@ -84,6 +84,12 @@ export function Navbar() {
               Gov Schemes
             </Link>
             <Link
+              href="/blogs"
+              className="hidden md:block rounded-md px-3 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 transition-colors"
+            >
+              Blog
+            </Link>
+            <Link
               href="/about"
               className="hidden md:block rounded-md px-3 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 transition-colors"
             >
@@ -152,6 +158,7 @@ export function Navbar() {
             {[
               ["D2C Brands", "/brands"],
               ["Gov Schemes", "/government-tenders"],
+              ["Blog", "/blogs"],
               ["About", "/about"],
             ].map(([label, href]) => (
               <Link
